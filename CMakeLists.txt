@@ -165,6 +165,14 @@ if(NOT DWARFLENS_WASM)
   target_compile_options(test_span_reader PRIVATE ${DWARFLENS_COMPILE_OPTIONS})
   add_test(NAME SpanReaderRangeMap COMMAND test_span_reader)
 
+  # Unit test: WasmParser
+  add_executable(test_wasm_parser
+    tests/unit/test_wasm_parser.cpp
+  )
+  target_link_libraries(test_wasm_parser PRIVATE libdwarflens)
+  target_compile_options(test_wasm_parser PRIVATE ${DWARFLENS_COMPILE_OPTIONS})
+  add_test(NAME WasmParser COMMAND test_wasm_parser)
+
   # Integration test: DWARF extraction
   add_executable(test_dwarf_extraction
     tests/unit/test_dwarf_extraction.cpp
@@ -179,7 +187,7 @@ if(NOT DWARFLENS_WASM)
   add_test(NAME DwarfExtraction COMMAND test_dwarf_extraction)
 
   # CTest properties
-  set_tests_properties(SpanReaderRangeMap DwarfExtraction PROPERTIES
+  set_tests_properties(SpanReaderRangeMap WasmParser DwarfExtraction PROPERTIES
     TIMEOUT 60
   )
 endif()
