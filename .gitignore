@@ -1,0 +1,10 @@
+build/
+build-*/
+dist/
+node_modules/
+*.o
+*.a
+*.so
+.DS_Store
+.vscode/
+compile_commands.json
