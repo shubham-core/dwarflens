@@ -5,7 +5,7 @@
 #include "span_reader.hpp"
 #include "range_map.hpp"
 #include <cstdint>
-#include <expected>
+#include "expected.hpp"
 #include <optional>
 #include <string>
 #include <string_view>

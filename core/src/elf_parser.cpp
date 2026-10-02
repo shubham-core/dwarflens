@@ -392,7 +392,7 @@ ElfParser::parse(std::span<const uint8_t> data, std::string filename) {
 
             auto st_other_r = sym_rdr.read_u8();
             if (!st_other_r) return std::unexpected(st_other_r.error());
-            uint8_t st_other = *st_other_r;
+            (void)*st_other_r;
 
             auto st_shndx_r = sym_rdr.read_u16_le();
             if (!st_shndx_r) return std::unexpected(st_shndx_r.error());

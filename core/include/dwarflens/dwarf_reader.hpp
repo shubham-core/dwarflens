@@ -6,7 +6,7 @@
 #include "span_reader.hpp"
 #include "struct_layout.hpp"
 #include <cstdint>
-#include <expected>
+#include "expected.hpp"
 #include <optional>
 #include <string>
 #include <unordered_map>

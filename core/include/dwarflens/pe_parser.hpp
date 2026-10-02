@@ -6,7 +6,7 @@
 #include "range_map.hpp"
 #include "elf_parser.hpp" // for SectionCategory
 #include <cstdint>
-#include <expected>
+#include "expected.hpp"
 #include <optional>
 #include <string>
 #include <string_view>
