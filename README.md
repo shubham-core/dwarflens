@@ -2,10 +2,10 @@
 
 > **A high-performance systems engineering tool that helps C, C++, Rust, and WebAssembly developers find wasted memory, eliminate CPU cache misses, and prevent binary bloat in CI.**
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Online-success.svg)](https://shubham-dataeng.github.io/dwarflens/)
-[![CI](https://github.com/shubham-dataeng/dwarflens/actions/workflows/ci.yml/badge.svg)](https://github.com/shubham-dataeng/dwarflens/actions)
-[![Fuzzing & Security](https://github.com/shubham-dataeng/dwarflens/actions/workflows/fuzz.yml/badge.svg)](https://github.com/shubham-dataeng/dwarflens/actions)
-[![Release](https://github.com/shubham-dataeng/dwarflens/actions/workflows/release.yml/badge.svg)](https://github.com/shubham-dataeng/dwarflens/releases)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Online-success.svg)](https://shubham-core.github.io/dwarflens/)
+[![CI](https://github.com/shubham-core/dwarflens/actions/workflows/ci.yml/badge.svg)](https://github.com/shubham-core/dwarflens/actions)
+[![Fuzzing & Security](https://github.com/shubham-core/dwarflens/actions/workflows/fuzz.yml/badge.svg)](https://github.com/shubham-core/dwarflens/actions)
+[![Release](https://github.com/shubham-core/dwarflens/actions/workflows/release.yml/badge.svg)](https://github.com/shubham-core/dwarflens/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-purple.svg)](CMakeLists.txt)
 [![Wasm](https://img.shields.io/badge/WebAssembly-wasm32-orange.svg)](wasm/)
@@ -210,7 +210,7 @@ Add DwarfLens to your PR workflow using `.github/workflows/ci.yml` or the standa
 
 ```yaml
 - name: Run DwarfLens Diff
-  uses: shubham-dataeng/dwarflens/action@main
+  uses: shubham-core/dwarflens/action@main
   with:
     base-binary: base_build/my_app
     target-binary: head_build/my_app
