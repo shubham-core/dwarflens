@@ -74,6 +74,11 @@ static dwarflens::BinaryAnalysis analyze_binary(
                    data[0] == 0x00 && data[1] == 0x61 &&
                    data[2] == 0x73 && data[3] == 0x6D;
 
+    bool is_macho = data.size() >= 4 &&
+                    ((data[0] == 0xCF && data[1] == 0xFA && data[2] == 0xED && data[3] == 0xFE) ||
+                     (data[0] == 0xFE && data[1] == 0xED && data[2] == 0xFA && data[3] == 0xCF));
+    bool is_pe    = data.size() >= 64 && data[0] == 'M' && data[1] == 'Z';
+
     if (is_elf) {
         analysis.format = BinaryAnalysis::Format::ELF;
         auto elf_r = ElfParser::parse(sp, filename);
@@ -166,8 +171,112 @@ static dwarflens::BinaryAnalysis analyze_binary(
         } else {
             std::cerr << "Wasm parse error: " << wasm_r.error().message() << "\n";
         }
+    } else if (is_macho) {
+        analysis.format = BinaryAnalysis::Format::MachO;
+        auto macho_r = MachoParser::parse(sp, filename);
+        if (macho_r) {
+            const MachoParseResult& mo = *macho_r;
+            analysis.macho = mo;
+            analysis.flash_size = mo.flash_size();
+            analysis.ram_size   = mo.ram_size();
+
+            for (const auto& s : mo.sections) {
+                BinaryAnalysis::SectionSummary ss;
+                ss.name     = s.full_name;
+                ss.size     = s.size;
+                ss.vm_addr  = s.addr;
+                switch (s.category) {
+                    case SectionCategory::Code:      ss.category = "code";      break;
+                    case SectionCategory::ROData:    ss.category = "rodata";    break;
+                    case SectionCategory::RWData:    ss.category = "data";      break;
+                    case SectionCategory::BSS:       ss.category = "bss";       break;
+                    case SectionCategory::DebugInfo: ss.category = "debug";     break;
+                    case SectionCategory::Metadata:  ss.category = "metadata";  break;
+                    default:                         ss.category = "other";     break;
+                }
+                analysis.sections.push_back(std::move(ss));
+            }
+
+            for (const auto& sym : mo.symbols) {
+                if (sym.size == 0) continue;
+                BinaryAnalysis::SymbolSummary ss;
+                ss.name           = sym.demangled_name;
+                ss.raw_name       = sym.raw_name;
+                ss.section        = sym.section_name;
+                ss.template_group = sym.template_group;
+                ss.size           = sym.size;
+                ss.type           = "func";
+                analysis.symbols.push_back(std::move(ss));
+            }
+
+            // Extract DWARF if embedded in Mach-O
+            DwarfReader::Input dwarf_in;
+            auto di = mo.section_data("__DWARF.__debug_info", sp);
+            if (!di) di = mo.section_data("__debug_info", sp);
+            auto da = mo.section_data("__DWARF.__debug_abbrev", sp);
+            if (!da) da = mo.section_data("__debug_abbrev", sp);
+            auto ds = mo.section_data("__DWARF.__debug_str", sp);
+            if (!ds) ds = mo.section_data("__debug_str", sp);
+
+            if (di && da) {
+                dwarf_in.debug_info   = *di;
+                dwarf_in.debug_abbrev = *da;
+                if (ds) dwarf_in.debug_str = *ds;
+                auto structs_r = DwarfReader::extract_structs(dwarf_in);
+                if (structs_r) {
+                    analysis.structs = std::move(*structs_r);
+                    LayoutAnalyzer::analyze_all(analysis.structs);
+                }
+            }
+        } else {
+            std::cerr << "Mach-O parse error: " << macho_r.error().message() << "\n";
+        }
+    } else if (is_pe) {
+        analysis.format = BinaryAnalysis::Format::PE;
+        auto pe_r = PeParser::parse(sp, filename);
+        if (pe_r) {
+            const PeParseResult& pe = *pe_r;
+            analysis.pe = pe;
+            analysis.flash_size = pe.flash_size();
+            analysis.ram_size   = pe.ram_size();
+
+            for (const auto& s : pe.sections) {
+                BinaryAnalysis::SectionSummary ss;
+                ss.name     = s.name;
+                ss.size     = s.raw_size > 0 ? s.raw_size : s.virtual_size;
+                ss.vm_addr  = pe.image_base + s.virtual_addr;
+                switch (s.category) {
+                    case SectionCategory::Code:      ss.category = "code";      break;
+                    case SectionCategory::ROData:    ss.category = "rodata";    break;
+                    case SectionCategory::RWData:    ss.category = "data";      break;
+                    case SectionCategory::BSS:       ss.category = "bss";       break;
+                    case SectionCategory::DebugInfo: ss.category = "debug";     break;
+                    case SectionCategory::Metadata:  ss.category = "metadata";  break;
+                    default:                         ss.category = "other";     break;
+                }
+                analysis.sections.push_back(std::move(ss));
+            }
+
+            // Extract DWARF if present (e.g. MinGW/Clang on Windows)
+            DwarfReader::Input dwarf_in;
+            auto di = pe.section_data(".debug_info", sp);
+            auto da = pe.section_data(".debug_abbrev", sp);
+            auto ds = pe.section_data(".debug_str", sp);
+            if (di && da) {
+                dwarf_in.debug_info   = *di;
+                dwarf_in.debug_abbrev = *da;
+                if (ds) dwarf_in.debug_str = *ds;
+                auto structs_r = DwarfReader::extract_structs(dwarf_in);
+                if (structs_r) {
+                    analysis.structs = std::move(*structs_r);
+                    LayoutAnalyzer::analyze_all(analysis.structs);
+                }
+            }
+        } else {
+            std::cerr << "PE/COFF parse error: " << pe_r.error().message() << "\n";
+        }
     } else {
-        std::cerr << "Unknown binary format (not ELF or Wasm)\n";
+        std::cerr << "Unknown binary format (expected ELF, WebAssembly, Mach-O, or PE/COFF)\n";
     }
 
     return analysis;
@@ -176,13 +285,23 @@ static dwarflens::BinaryAnalysis analyze_binary(
 // ---------------------------------------------------------------------------
 // Output formatters
 // ---------------------------------------------------------------------------
+static std::string format_binary_type(dwarflens::BinaryAnalysis::Format f) {
+    switch (f) {
+        case dwarflens::BinaryAnalysis::Format::ELF:   return "ELF";
+        case dwarflens::BinaryAnalysis::Format::Wasm:  return "Wasm";
+        case dwarflens::BinaryAnalysis::Format::MachO: return "Mach-O";
+        case dwarflens::BinaryAnalysis::Format::PE:    return "PE/COFF";
+    }
+    return "Unknown";
+}
+
 static void print_table_analyze(const dwarflens::BinaryAnalysis& a) {
     using namespace std;
     const int W = 60, SW = 12, CW = 12;
     auto line = [&]{ cout << string(W + SW + CW + 4, '-') << "\n"; };
 
     cout << "\n🔍 DwarfLens Analysis: " << a.filename << "\n";
-    cout << "   Format: " << (a.format == dwarflens::BinaryAnalysis::Format::ELF ? "ELF" : "Wasm")
+    cout << "   Format: " << format_binary_type(a.format)
          << "   File size: " << format_size(a.file_size)
          << "   Flash: " << format_size(a.flash_size)
          << "   RAM: " << format_size(a.ram_size) << "\n\n";
@@ -322,7 +441,7 @@ static std::string make_markdown_analyze(const dwarflens::BinaryAnalysis& a) {
     std::ostringstream o;
     o << "# DwarfLens Analysis: `" << a.filename << "`\n\n";
     o << "| Metric | Value |\n|--------|-------|\n";
-    o << "| Format | " << (a.format == dwarflens::BinaryAnalysis::Format::ELF ? "ELF" : "Wasm") << " |\n";
+    o << "| Format | " << format_binary_type(a.format) << " |\n";
     o << "| File Size | " << format_size(a.file_size) << " |\n";
     o << "| Flash | " << format_size(a.flash_size) << " |\n";
     o << "| RAM | " << format_size(a.ram_size) << " |\n\n";

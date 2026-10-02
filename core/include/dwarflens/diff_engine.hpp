@@ -4,6 +4,8 @@
 #pragma once
 #include "elf_parser.hpp"
 #include "wasm_parser.hpp"
+#include "macho_parser.hpp"
+#include "pe_parser.hpp"
 #include "struct_layout.hpp"
 #include <cstdint>
 #include <optional>
@@ -14,17 +16,21 @@
 namespace dwarflens {
 
 // ---------------------------------------------------------------------------
-// Combined analysis result — either ELF or Wasm
+// Combined analysis result — ELF, Wasm, Mach-O, or PE
 // ---------------------------------------------------------------------------
 struct BinaryAnalysis {
     std::string filename;
     uint64_t    file_size{};
-    enum class Format { ELF, Wasm } format{Format::ELF};
+    enum class Format { ELF, Wasm, MachO, PE } format{Format::ELF};
 
     // ELF-specific
     std::optional<ElfParseResult> elf;
     // Wasm-specific
     std::optional<WasmParseResult> wasm;
+    // MachO-specific
+    std::optional<MachoParseResult> macho;
+    // PE-specific
+    std::optional<PeParseResult> pe;
     // Structs (from DWARF)
     std::vector<StructLayout> structs;
 

@@ -1,20 +1,44 @@
 # 🔍 DwarfLens
 
-> **Production-grade visual binary size & DWARF struct memory-layout analyzer for C, C++, Rust, and WebAssembly developers.**
+> **A high-performance systems engineering tool that helps C, C++, Rust, and WebAssembly developers find wasted memory, eliminate CPU cache misses, and prevent binary bloat in CI.**
 
-[![CI](https://github.com/dwarflens/dwarflens/actions/workflows/ci.yml/badge.svg)](https://github.com/dwarflens/dwarflens/actions)
-[![License: All Rights Reserved](https://img.shields.io/badge/License-All%20Rights%20Reserved-red.svg)](LICENSE)
+[![CI](https://github.com/shubham-dataeng/dwarflens/actions/workflows/ci.yml/badge.svg)](https://github.com/shubham-dataeng/dwarflens/actions)
+[![Fuzzing & Security](https://github.com/shubham-dataeng/dwarflens/actions/workflows/fuzz.yml/badge.svg)](https://github.com/shubham-dataeng/dwarflens/actions)
+[![Release](https://github.com/shubham-dataeng/dwarflens/actions/workflows/release.yml/badge.svg)](https://github.com/shubham-dataeng/dwarflens/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-purple.svg)](CMakeLists.txt)
 [![Wasm](https://img.shields.io/badge/WebAssembly-wasm32-orange.svg)](wasm/)
 
 ---
 
+### 🎯 Non-Technical Summary / The Recruiter Hook
+*In software development, memory layout and binary size directly control speed, battery life, and cloud costs. Inefficient data structures introduce invisible "padding holes" that waste megabytes of RAM and trigger severe CPU cache latency penalties. **DwarfLens** is a developer tool that automatically inspects compiled application binaries, visualizes data structures down to individual bytes, alerts engineers to CPU cache-line crossings, and generates optimized code fixes with one click.*
+
+---
+
+## 🥊 DwarfLens vs. Bloaty McBloatface & Pahole
+
+Developers previously had to switch between multiple disjointed command-line tools to diagnose binary footprint and memory layout issues. DwarfLens unites these workflows into a single zero-dependency engine with a client-side WebAssembly GUI and automated CI budget enforcement:
+
+| Capability / Feature | DwarfLens | Bloaty McBloatface (Google) | Pahole (dwarves) |
+| :--- | :---: | :---: | :---: |
+| **Combined Size & Memory-Layout Analysis** | ✅ **Yes (Unified Engine)** | ❌ Size attribution only | ❌ Struct layout only |
+| **Zero-Install WebAssembly UI** | ✅ **Yes (100% Client-Side Wasm)** | ❌ CLI only | ❌ CLI only |
+| **Binary Formats Supported** | ✅ **ELF64, WebAssembly, Mach-O, PE/COFF** | ⚠️ ELF, Mach-O (No Wasm / PE) | ⚠️ ELF only |
+| **64-Byte CPU Cache-Line Split Detection** | ✅ **Exact boundary alerts & visualizer** | ❌ None | ⚠️ Partial text flags |
+| **Optimal Field Repacker with Code Gen** | ✅ **Copy-paste C++ & Rust snippets** | ❌ None | ❌ Manual diagnosis only |
+| **Automated CI Budget & PR Regression Checks** | ✅ **Built-in `--max-growth-bytes`** | ⚠️ Custom bash scripts | ❌ None |
+| **Zero-Dependency Architecture** | ✅ **C++23 Standard Library only** | ⚠️ Heavy deps (Abseil, re2, capstone) | ⚠️ Linux deps (libdw, elfutils) |
+| **Memory-Safety Fuzzing Suite** | ✅ **LLVM libFuzzer + Standalone CI harness** | ⚠️ Basic OSS-Fuzz | ❌ None |
+
+---
+
 ## 💡 Overview & Value Proposition
 
-Systems, game, embedded, and WebAssembly developers frequently struggle with binary bloat, mysterious cache misses, and memory overhead. **DwarfLens** answers four critical questions:
+Systems, game, embedded, and WebAssembly engineers answer four critical questions with DwarfLens:
 
 1. **Why did my binary grow between builds?**  
-   Attributes every byte of an ELF or WebAssembly container to sections, compile units, and demangled symbols. Computes exact deltas between a base build and a target build.
+   Attributes every byte of an ELF, WebAssembly, Mach-O, or PE/COFF binary to sections, compile units, and demangled symbols. Computes exact deltas between a base build and a target build.
 2. **Which symbols and templates drive bloat?**  
    Demangles C++ (`abi::__cxa_demangle`) and Rust symbols, grouping template instantiations (`std::vector<T>` → `std::vector<...>`) to spot monomorphization bloat instantly.
 3. **How do my structs and classes actually sit in memory?**  
@@ -28,38 +52,54 @@ Systems, game, embedded, and WebAssembly developers frequently struggle with bin
 
 ```mermaid
 graph TD
-    subgraph Inputs
-        ELF["ELF64 Executable / Shared Object / Object (.o)"]
-        WASM["WebAssembly Module (.wasm)"]
+    subgraph Inputs ["Multi-Container Binary Inputs"]
+        ELF["Linux ELF64 (.so, bin, .o)"]
+        WASM["WebAssembly (.wasm)"]
+        MACHO["macOS Mach-O 64-bit"]
+        PE["Windows PE/COFF 64-bit (.exe, .dll)"]
     end
 
-    subgraph Core Engine [libdwarflens - C++23]
+    subgraph Core ["Core Engine (libdwarflens - C++23)"]
         SR["SpanReader (Zero-copy bounds-checked reader)"]
         RM["RangeMap (Interval attribution & gap-filling)"]
         EP["ElfParser (ELF64 container, sections, symbols)"]
         WP["WasmParser (Wasm sections, code bodies, name section)"]
+        MP["MachoParser (Mach-O load commands, segments, symbols)"]
+        PP["PeParser (PE/COFF headers, sections, export/import symbols)"]
         DR["DwarfReader (Two-pass DWARF v4/v5 DIE walker)"]
         LA["LayoutAnalyzer (Padding, cache lines, optimal repacking)"]
         DE["DiffEngine (Binary size & struct regression diffs)"]
         JS["JsonSerializer (Zero-dependency JSON builder)"]
     end
 
-    subgraph Surfaces
+    subgraph Surfaces ["Deployment Surfaces"]
         CLI["dwarflens CLI (Terminal table / JSON / Markdown)"]
-        ACT["GitHub Action (CI comment & budget enforcement)"]
-        WEB["Interactive Web App (TypeScript + Vite + Web Worker)"]
+        ACT["GitHub Action (PR bot & budget enforcement)"]
+        WEB["Interactive Web App (TypeScript + Vite + WebAssembly)"]
     end
 
-    ELF --> SR
-    WASM --> SR
-    SR --> EP & WP
-    EP --> DR
+    ELF & WASM & MACHO & PE --> SR
+    SR --> EP & WP & MP & PP
+    EP & MP & PP --> DR
     DR --> LA
-    EP & WP --> RM
+    EP & WP & MP & PP --> RM
     LA & RM --> DE
     DE --> JS
     JS --> CLI & ACT & WEB
 ```
+
+---
+
+## 📦 Distribution & Pre-built Binaries
+
+Statically linked, zero-dependency release binaries are automatically compiled and published on every tagged release:
+
+- **Linux x86_64**: `dwarflens-linux-x86_64.tar.gz`
+- **macOS Apple Silicon (arm64)**: `dwarflens-macos-arm64.tar.gz`
+- **macOS Intel (x86_64)**: `dwarflens-macos-x86_64.tar.gz`
+- **Windows x86_64**: `dwarflens-windows-x86_64.zip`
+
+Each release archive includes SHA256 checksums verified by GitHub Actions.
 
 ---
 
@@ -68,24 +108,24 @@ graph TD
 ### 1. Build Native CLI and Tests
 
 ```bash
-# Configure and build
+# Configure and build with native compiler
 cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build -j$(nproc)
 
-# Run full test suite (SpanReader, RangeMap, and DWARF extraction)
+# Run full automated test suite (Unit tests + DWARF extraction + Fuzz resilience)
 cd build && ctest --output-on-failure -V
 ```
 
 ### 2. Analyze a Binary
 
 ```bash
-# Terminal table view
+# Formatted terminal table view
 ./build/dwarflens analyze ./build/tests/fixtures/sample_target
 
-# JSON format
+# Structured JSON format (for automation pipelines)
 ./build/dwarflens analyze ./build/tests/fixtures/sample_target --format=json
 
-# Markdown format
+# Markdown format (ready for GitHub PR summaries)
 ./build/dwarflens analyze ./build/tests/fixtures/sample_target --format=markdown
 ```
 
@@ -97,155 +137,56 @@ cd build && ctest --output-on-failure -V
                       ./build/tests/fixtures/sample_target_bloat \
                       --format=table
 
-# Fail if growth exceeds 500 bytes or if struct padding regressed
-./build/dwarflens diff base.elf head.elf \
-                      --max-growth-bytes=500 \
+# Enforce strict CI size and struct padding budgets:
+./build/dwarflens diff base_app target_app \
+                      --max-growth-bytes=10240 \
                       --fail-on-padding-regression
 ```
 
 ---
 
-## 📊 Real Benchmark Output
+## 🔧 Compiler Flags & DWARF Extraction Context
 
-Executed against test fixture `sample_target` (base) and `sample_target_bloat` (target):
+The quality and completeness of struct layout extraction depends on compiler debug generation settings:
 
-### `dwarflens analyze` Output
+### `-g` vs. `-g1` vs. `-g3`
+- **`-g1` (Minimal)**: Emits line numbers for backtraces but completely strips `DW_TAG_structure_type` and `DW_TAG_member` records. DwarfLens accurately calculates container and section footprints, but cannot reconstruct struct memory layouts.
+- **`-g` / `-g2` (Recommended)**: Emits full debug records for all data structures and functions utilized in the binary. This is the optimal setting for DwarfLens.
+- **`-g3` (Macro Expansion)**: Includes preprocessor macro tables (`.debug_macro` / `.debug_macinfo`). Struct layouts are identical to `-g`, but debug section sizes will be significantly larger.
 
-```text
-🔍 DwarfLens Analysis: tests/fixtures/sample_target
-   Format: ELF   File size: 20.4 KiB   Flash: 1.5 KiB   RAM: 112 B
-
-----------------------------------------------------------------------------------------
-Section                                                             Size    Category
-----------------------------------------------------------------------------------------
-.text                                                              890 B        code
-.rodata                                                             36 B      rodata
-.eh_frame                                                          332 B      rodata
-.data                                                               16 B        data
-.bss                                                                 8 B         bss
-.debug_info                                                      1.8 KiB       debug
-.debug_abbrev                                                      352 B       debug
-.debug_line                                                        454 B       debug
-.symtab                                                            984 B    metadata
-----------------------------------------------------------------------------------------
-
-📊 Top Symbols by Size:
-----------------------------------------------------------------------------------------
-Symbol                                                              Size        Type
-----------------------------------------------------------------------------------------
-main                                                               466 B        func
-compute_product(double, int)                                        85 B        func
-compute_sum(int)                                                    50 B        func
-float identity<float>(float)                                        20 B        func
-double identity<double>(double)                                     20 B        func
-int identity<int>(int)                                              16 B        func
-----------------------------------------------------------------------------------------
-
-🏗️  DWARF Struct Layouts:
-
-  struct BadLayout { size=24B, padding=10B, cache_lines=1 }
-    +   0  char                           a
-    +   8  double                         b
-    +  16  char                           c
-    +  20  int                            d
-    💡 Reorder saves 8 bytes (24B -> 16B)
-
-  struct CrossingStruct { size=72B, padding=0B, cache_lines=2 } ⚠️ cache-line split!
-    +   0  uint8_t[60]                    header
-    +  60  uint64_t                       crossing_val
-    +  68  uint32_t                       trailer
-
-  struct GoodLayout { size=24B, padding=0B, cache_lines=1 }
-    +   0  double                         x
-    +   8  int64_t                        y
-    +  16  int32_t                        z
-    +  20  int16_t                        w
-    +  22  int8_t                         v
-    +  23  int8_t                         u
-
-  struct TailPad { size=16B, padding=7B, cache_lines=1 }
-    +   0  int64_t                        big
-    +   8  int8_t                         small
-```
-
-### `dwarflens diff` Output
-
-```text
-🔀 DwarfLens Diff: sample_target → sample_target_bloat
-
-  File size: +344 B (1.64%)
-  Flash:     +122 B (7.69%)
-  RAM:       +0 B (0.00%)
-
-📦 Section Deltas:
-------------------------------------------------------------------------------------------
-Section                                                     Base       Delta         %
-------------------------------------------------------------------------------------------
-.debug_info                                              1.8 KiB     +161 B       +8%
-.text                                                      890 B      +82 B       +9%
-.debug_line                                                454 B      +46 B      +10%
-.debug_str                                                 920 B      +45 B       +4%
-.symtab                                                    984 B      +24 B       +2%
-------------------------------------------------------------------------------------------
-
-📊 Top Symbol Deltas:
-------------------------------------------------------------------------------------------
-Symbol                                                      Base       Delta
-------------------------------------------------------------------------------------------
-extra_function_added_in_target()                             0 B       +51 B
-main                                                       466 B       +31 B
-------------------------------------------------------------------------------------------
-```
+### GCC vs. Clang Considerations
+- **GCC Type Pruning**: GCC enables `-feliminate-unused-debug-types` by default in optimized builds. If a struct is declared in a header but not instantiated or referenced by compiled code, GCC will omit its DIE. To inspect all declared types, compile with:
+  ```bash
+  g++ -g -O2 -fno-eliminate-unused-debug-types my_app.cpp -o my_app
+  ```
+- **Clang Standalone Debug**: Clang may emit forward declarations instead of full type definitions if a type is defined in an external compilation unit. Use `-fstandalone-debug` when compiling test fixtures or libraries to force complete layout emission.
 
 ---
 
-## 🧠 Struct Memory Layout Optimizer
+## ⚡ Link-Time Optimization (LTO) Handling
 
-When `BadLayout` is analyzed:
+When Link-Time Optimization (`-flto` or `-fuse-ld=lld / -flto=thin`) is enabled, compilers rewrite and merge whole-program call graphs:
 
-```cpp
-struct BadLayout {
-    char   a; // 1 byte
-    // 7 bytes padding hole
-    double b; // 8 bytes
-    char   c; // 1 byte
-    // 3 bytes padding hole
-    int    d; // 4 bytes
-}; // Total: 24 bytes (10 bytes padding, 41.7% wasted)
-```
+1. **Section Splitting & Inlining**: Functions and symbols may be fragmented across `.text.hot`, `.text.unlikely`, and `.text.startup`. DwarfLens uses interval trees (`RangeMap`) to attribute non-contiguous address ranges accurately without double-counting bytes.
+2. **Inter-CU Type References**: In LTO, the linker combines compilation units and references types using `DW_FORM_ref_addr` (cross-CU global offsets) rather than local `DW_FORM_ref4`. DwarfLens's two-pass DWARF DIE walker tracks absolute section offsets to resolve type names and sizes seamlessly across compilation unit boundaries.
+3. **Dead-Stripping**: Unused struct members and virtual tables stripped by LTO are properly reflected: DwarfLens only reports layouts for structures that survive code generation into the final binary.
 
-DwarfLens computes the optimal alignment-sorted field order and generates copy-pasteable definitions:
+---
 
-### Optimized C++
+## 🛡️ Memory Safety, Fuzz Testing & Browser Protection
 
-```cpp
-// Optimal repacked layout: was 24 bytes, now 16 bytes (saves 8 bytes per instance)
-struct BadLayout {
-    double b; // offset: 0, size: 8
-    int d;    // offset: 8, size: 4
-    char a;   // offset: 12, size: 1
-    char c;   // offset: 13, size: 1
-    // tail padding: 2 bytes
-};
-```
+Because binary parsers ingest untrusted, potentially hostile inputs, DwarfLens implements defense-in-depth safety:
 
-### Optimized Rust
-
-```rust
-#[repr(C)]
-pub struct BadLayout {
-    pub b: f64,
-    pub d: i32,
-    pub a: i8,
-    pub c: i8,
-}
-```
+1. **Zero Raw Pointer Arithmetic**: All reads are guarded by zero-copy `std::span<const uint8_t>` bounds-checked readers (`SpanReader`). Out-of-bounds reads return structured `std::unexpected(ReadError::OutOfBounds)` rather than triggering undefined behavior or memory violations.
+2. **Cap on Variable-Length Integers**: ULEB128/SLEB128 decoders are strictly capped at 10 iterations (`ceil(64/7)`) to prevent CPU exhaustion on cyclic or corrupted byte streams.
+3. **LLVM libFuzzer & Continuous Fuzzing**: A dedicated fuzz target (`fuzz/fuzz_targets.cpp`) exercises the ELF, WebAssembly, Mach-O, PE, and DWARF parsers against millions of mutated inputs with AddressSanitizer (ASan) and UndefinedBehaviorSanitizer (UBSan).
+4. **Browser Memory Protection**: In the Web UI, files over **256 MB** are intercepted with an informative memory shield directing users to the native zero-copy CLI to prevent crashing browser tab WebAssembly linear memory heaps.
 
 ---
 
 ## 🌐 Web Application (TypeScript + Vite)
 
-DwarfLens features a responsive dark-mode web application running 100% locally in the browser. Users can drag and drop ELF or WebAssembly binaries for local analysis, or explore bundled demo datasets.
+DwarfLens features a responsive dark-mode web application running 100% locally in the browser. Users can drag and drop binaries for local analysis, or explore bundled demo datasets.
 
 ```bash
 cd web
@@ -254,11 +195,11 @@ npm run dev     # Start local Vite dev server
 npm run build   # Production bundle to web/dist/ (zero TS errors)
 ```
 
-### Web Visualizers:
-- **Proportional Size Treemap / Bars**: Visual distribution of `.text`, `.rodata`, `.data`, `.bss`, and debug sections.
-- **Searchable Symbol Table**: Demangled symbol inspection with template grouping.
+### Visualizers:
+- **Proportional Size Treemap & Category Bars**: Visual distribution of Code (`.text`), Read-Only Data (`.rodata`), Data (`.data`), BSS, and Debug sections.
+- **Demangled Symbol Explorer**: Instant search with template grouping (`Foo<T>`).
 - **64-Byte Cache-Line Struct X-Ray**: Interactive 8-byte row grid color-coding struct fields, displaying hatched red padding holes, and marking 64-byte CPU cache boundaries with side-by-side refactor suggestions.
-- **Side-by-Side Diff View**: Visual comparison of additions, deletions, and layout regressions.
+- **Side-by-Side Diff View**: Visual comparison of size regressions and padding deltas.
 
 ---
 
@@ -268,30 +209,17 @@ Add DwarfLens to your PR workflow using `.github/workflows/ci.yml` or the standa
 
 ```yaml
 - name: Run DwarfLens Diff
-  uses: dwarflens/dwarflens/action@main
+  uses: shubham-dataeng/dwarflens/action@main
   with:
     base-binary: base_build/my_app
     target-binary: head_build/my_app
     format: markdown
-    max-growth-bytes: '10240'       # Fail PR if binary grew by > 10 KiB
+    max-growth-bytes: '10240'        # Fail PR if binary grew by > 10 KiB
     fail-on-padding-regression: true # Fail PR if struct padding increased
 ```
 
 ---
 
-## 🛠️ WebAssembly Compilation (Emscripten)
-
-To compile the C++23 core to `dwarflens.wasm` using Emscripten:
-
-```bash
-# Using emcmake
-emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release
-cmake --build build-wasm --target dwarflens_wasm
-cp build-wasm/dwarflens_wasm.js web/public/
-cp build-wasm/dwarflens_wasm.wasm web/public/
-```
-
----
-
 ## 📄 License
-All Rights Reserved. Copyright (c) 2026 Shubham (shubham-dataeng). Proprietary software — unauthorized copying, modification, or distribution is strictly prohibited.
+
+DwarfLens is released under the **[MIT License](LICENSE)**. Open source and free for commercial and personal use.

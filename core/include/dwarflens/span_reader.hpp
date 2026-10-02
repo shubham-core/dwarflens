@@ -157,6 +157,17 @@ public:
         return v;
     }
 
+    [[nodiscard]] ReadResult<uint64_t> read_u64_be() noexcept {
+        if (remaining() < 8)
+            return std::unexpected(make_error_code(ReadError::OutOfBounds));
+        uint64_t v;
+        std::memcpy(&v, data_.data() + cursor_, 8);
+        cursor_ += 8;
+        if constexpr (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+            v = __builtin_bswap64(v);
+        return v;
+    }
+
     // -----------------------------------------------------------------------
     // ULEB128 — unsigned variable-length base-128 integer (up to 64 bits)
     // -----------------------------------------------------------------------

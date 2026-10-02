@@ -1,0 +1,46 @@
+name: DwarfLens Fuzzing & Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run nightly fuzzer at 02:00 UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  libfuzzer-security:
+    name: Clang libFuzzer + ASan + UBSan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Clang & LLVM toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-18 llvm-18 cmake ninja-build
+
+      - name: Configure libFuzzer build
+        run: |
+          cmake -S . -B build_fuzz \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_CXX_STANDARD=23 \
+            -DDWARFLENS_BUILD_LIBFUZZER=ON
+
+      - name: Build fuzzer target
+        run: cmake --build build_fuzz --target fuzz_parsers -j$(nproc)
+
+      - name: Run LLVM libFuzzer (60 seconds stress test)
+        run: |
+          mkdir -p corpus
+          # Seed corpus with ELF, Wasm, Mach-O, PE headers
+          echo -en "\x7fELF\x02\x01\x01\x00" > corpus/seed_elf.bin
+          echo -en "\x00asm\x01\x00\x00\x00" > corpus/seed_wasm.bin
+          echo -en "\xcf\xfa\xed\xfe" > corpus/seed_macho.bin
+          echo -en "MZ\x90\x00" > corpus/seed_pe.bin
+
+          # Run libFuzzer for 60 seconds with ASan/UBSan leak and crash detection
+          ./build_fuzz/fuzz_parsers corpus/ -max_total_time=60 -rss_limit_mb=2048 -print_final_stats=1

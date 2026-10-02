@@ -1,0 +1,145 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release-binaries:
+    name: Build ${{ matrix.os-name }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - os: ubuntu-latest
+            os-name: linux
+            arch: x86_64
+            artifact-name: dwarflens-linux-x86_64
+            binary-path: build/dwarflens
+            archive-name: dwarflens-linux-x86_64.tar.gz
+            use-tar: true
+
+          # macOS Apple Silicon (arm64)
+          - os: macos-latest
+            os-name: macos
+            arch: arm64
+            artifact-name: dwarflens-macos-arm64
+            binary-path: build/dwarflens
+            archive-name: dwarflens-macos-arm64.tar.gz
+            use-tar: true
+
+          # macOS Intel (x86_64)
+          - os: macos-13
+            os-name: macos
+            arch: x86_64
+            artifact-name: dwarflens-macos-x86_64
+            binary-path: build/dwarflens
+            archive-name: dwarflens-macos-x86_64.tar.gz
+            use-tar: true
+
+          # Windows x86_64
+          - os: windows-latest
+            os-name: windows
+            arch: x86_64
+            artifact-name: dwarflens-windows-x86_64
+            binary-path: build/Release/dwarflens.exe
+            archive-name: dwarflens-windows-x86_64.zip
+            use-tar: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ninja-build
+
+      - name: Setup Ninja (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Configure CMake (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=23
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=23
+
+      - name: Build Binary
+        run: cmake --build build --config Release --target dwarflens -j
+
+      - name: Strip Binary (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: strip ${{ matrix.binary-path }} || true
+
+      - name: Package Release (tar.gz)
+        if: matrix.use-tar
+        run: |
+          mkdir -p release_package
+          cp ${{ matrix.binary-path }} release_package/dwarflens
+          cp LICENSE README.md release_package/
+          tar -czf ${{ matrix.archive-name }} -C release_package .
+          shasum -a 256 ${{ matrix.archive-name }} > ${{ matrix.archive-name }}.sha256
+
+      - name: Package Release (zip - Windows)
+        if: "!matrix.use-tar"
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release_package
+          Copy-Item ${{ matrix.binary-path }} release_package\dwarflens.exe
+          Copy-Item LICENSE, README.md release_package\
+          Compress-Archive -Path release_package\* -DestinationPath ${{ matrix.archive-name }}
+          (Get-FileHash ${{ matrix.archive-name }} -Algorithm SHA256).Hash + "  " + "${{ matrix.archive-name }}" | Out-File -FilePath "${{ matrix.archive-name }}.sha256" -Encoding ascii
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: |
+            ${{ matrix.archive-name }}
+            ${{ matrix.archive-name }}.sha256
+
+  publish-github-release:
+    name: Publish GitHub Release
+    needs: build-release-binaries
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded_artifacts
+
+      - name: Consolidate Artifacts
+        run: |
+          mkdir -p release_assets
+          find downloaded_artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.sha256" \) -exec cp {} release_assets/ \;
+          ls -la release_assets/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release_assets/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
