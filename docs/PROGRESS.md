@@ -5,7 +5,7 @@
 
 ## TIER A: Foundation (hardest, do first)
 - [x] A1. Analysis JSON contract
-- [ ] A2. Backend skeleton in server/
+- [x] A2. Backend skeleton in server/
 - [ ] A3. Data model and migrations
 - [ ] A4. Authentication and tenant isolation
 - [ ] A5. Ingest and read API
@@ -36,3 +36,7 @@
 ### A1: Analysis JSON Contract
 - **Completed:** Added `"schema_version": 1` and optional metadata (`repo`, `commit_sha`, `branch`, `build_name`, `timestamp`, `tool_version`, `compiler`, `flags`) to `BinaryAnalysis` and CLI flags. Authored standard JSON Schema at `schema/analysis.v1.schema.json`. Added automated Python-based schema validation test in `tests/test_analysis_schema.py` integrated into CTest.
 - **Verification:** Ran `ctest --test-dir build --output-on-failure` (6/6 passed including `AnalysisSchemaValidation`), verified backward compatibility without flags, and confirmed web build passed cleanly.
+
+### A2: Backend Skeleton in server/
+- **Completed:** Created TypeScript backend skeleton with Hono, Drizzle ORM, Zod env validation, Vitest, and Postgres client. Added `docker-compose.yml` for local Postgres, `server/.env.example`, `GET /health` endpoint, and scripts for dev/build/test/migrate.
+- **Verification:** Ran `npm test` in `server/` (health test passed), `npm run build` (clean tsc output), verified C++ ctest (6/6 passed), and verified web build.
