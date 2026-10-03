@@ -164,6 +164,7 @@ std::string JsonSerializer::serialize(const BinaryAnalysis& analysis) {
     std::ostringstream o;
     std::string i2("  ");
     o << "{\n";
+    o << i2 << JsonBuilder::kv("schema_version", (uint64_t)analysis.schema_version) << ",\n";
     o << i2 << JsonBuilder::kv("filename",    analysis.filename)    << ",\n";
     o << i2 << JsonBuilder::kv("file_size",   analysis.file_size)   << ",\n";
     auto format_str = [](BinaryAnalysis::Format f) {
@@ -178,6 +179,21 @@ std::string JsonSerializer::serialize(const BinaryAnalysis& analysis) {
     o << i2 << JsonBuilder::kv("format",      std::string(format_str(analysis.format))) << ",\n";
     o << i2 << JsonBuilder::kv("flash_size",  analysis.flash_size)  << ",\n";
     o << i2 << JsonBuilder::kv("ram_size",    analysis.ram_size)    << ",\n";
+
+    if (analysis.metadata.has_value()) {
+        const auto& m = *analysis.metadata;
+        std::string i4("    ");
+        o << i2 << "\"metadata\": {\n";
+        o << i4 << JsonBuilder::kv("repo",         m.repo)         << ",\n";
+        o << i4 << JsonBuilder::kv("commit_sha",   m.commit_sha)   << ",\n";
+        o << i4 << JsonBuilder::kv("branch",       m.branch)       << ",\n";
+        o << i4 << JsonBuilder::kv("build_name",   m.build_name)   << ",\n";
+        o << i4 << JsonBuilder::kv("timestamp",    m.timestamp)    << ",\n";
+        o << i4 << JsonBuilder::kv("tool_version", m.tool_version) << ",\n";
+        o << i4 << JsonBuilder::kv("compiler",     m.compiler)     << ",\n";
+        o << i4 << JsonBuilder::kv("flags",        m.flags)        << "\n";
+        o << i2 << "},\n";
+    }
 
     {
         std::vector<std::string> items;

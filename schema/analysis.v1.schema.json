@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dwarflens.dev/schemas/analysis.v1.json",
+  "title": "DwarfLens Binary Analysis V1",
+  "description": "Standardized schema for binary size, section bloat, and DWARF struct memory layouts",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "filename",
+    "file_size",
+    "format",
+    "sections",
+    "symbols",
+    "structs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [1],
+      "description": "Schema version number, strictly 1 for V1"
+    },
+    "filename": {
+      "type": "string",
+      "description": "Path or identifier of the analyzed binary"
+    },
+    "file_size": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total size in bytes of the binary container file"
+    },
+    "format": {
+      "type": "string",
+      "enum": ["ELF", "Wasm", "Mach-O", "PE", "Unknown"],
+      "description": "Container format detected"
+    },
+    "flash_size": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Estimated Flash/ROM footprint (.text + .rodata + .data)"
+    },
+    "ram_size": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Estimated RAM footprint (.data + .bss)"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional build and CI provenance metadata",
+      "properties": {
+        "repo": { "type": "string" },
+        "commit_sha": { "type": "string" },
+        "branch": { "type": "string" },
+        "build_name": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "tool_version": { "type": "string" },
+        "compiler": { "type": "string" },
+        "flags": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "sections": {
+      "type": "array",
+      "description": "Binary container sections",
+      "items": {
+        "type": "object",
+        "required": ["name", "category", "size"],
+        "properties": {
+          "name": { "type": "string" },
+          "category": { "type": "string" },
+          "size": { "type": "integer", "minimum": 0 },
+          "vm_addr": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "symbols": {
+      "type": "array",
+      "description": "Top demangled and categorized symbols",
+      "items": {
+        "type": "object",
+        "required": ["name", "size"],
+        "properties": {
+          "name": { "type": "string" },
+          "raw_name": { "type": "string" },
+          "section": { "type": "string" },
+          "compile_unit": { "type": "string" },
+          "template_group": { "type": "string" },
+          "size": { "type": "integer", "minimum": 0 },
+          "type": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "structs": {
+      "type": "array",
+      "description": "Extracted DWARF struct and class memory layouts",
+      "items": {
+        "type": "object",
+        "required": ["name", "byte_size", "alignment", "total_padding_bytes"],
+        "properties": {
+          "name": { "type": "string" },
+          "tag": { "type": "string" },
+          "source_file": { "type": "string" },
+          "source_line": { "type": "integer" },
+          "byte_size": { "type": "integer", "minimum": 0 },
+          "alignment": { "type": "integer", "minimum": 0 },
+          "total_padding_bytes": { "type": "integer", "minimum": 0 },
+          "useful_bytes": { "type": "integer", "minimum": 0 },
+          "cache_lines_spanned": { "type": "integer", "minimum": 0 },
+          "has_padding": { "type": "boolean" },
+          "has_cache_line_crossing": { "type": "boolean" },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "type_name", "offset", "byte_size"],
+              "properties": {
+                "name": { "type": "string" },
+                "type_name": { "type": "string" },
+                "offset": { "type": "integer", "minimum": 0 },
+                "byte_size": { "type": "integer", "minimum": 0 },
+                "alignment": { "type": "integer" },
+                "is_bitfield": { "type": "boolean" },
+                "is_base_class": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "padding_holes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["offset", "size"],
+              "properties": {
+                "offset": { "type": "integer", "minimum": 0 },
+                "size": { "type": "integer", "minimum": 0 },
+                "before": { "type": "string" },
+                "after": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "cache_line_crossings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["member_name", "member_offset", "member_size", "boundary"],
+              "properties": {
+                "member_name": { "type": "string" },
+                "member_offset": { "type": "integer" },
+                "member_size": { "type": "integer" },
+                "boundary": { "type": "integer" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "optimal": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "properties": {
+                  "byte_size": { "type": "integer" },
+                  "bytes_saved": { "type": "integer" },
+                  "cpp_snippet": { "type": "string" },
+                  "rust_snippet": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": true
+}

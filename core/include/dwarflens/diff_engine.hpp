@@ -19,9 +19,22 @@ namespace dwarflens {
 // Combined analysis result — ELF, Wasm, Mach-O, or PE
 // ---------------------------------------------------------------------------
 struct BinaryAnalysis {
+    uint32_t    schema_version{1};
     std::string filename;
     uint64_t    file_size{};
     enum class Format { ELF, Wasm, MachO, PE } format{Format::ELF};
+
+    struct Metadata {
+        std::string repo;
+        std::string commit_sha;
+        std::string branch;
+        std::string build_name;
+        std::string timestamp;
+        std::string tool_version{"0.1.0"};
+        std::string compiler;
+        std::string flags;
+    };
+    std::optional<Metadata> metadata;
 
     // ELF-specific
     std::optional<ElfParseResult> elf;

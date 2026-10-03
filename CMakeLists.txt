@@ -217,10 +217,24 @@ if(NOT DWARFLENS_WASM)
     add_test(NAME FuzzResilience COMMAND fuzz_parsers)
   endif()
 
+  # Schema Validation Test
+  find_package(Python3 COMPONENTS Interpreter QUIET)
+  if(Python3_FOUND)
+    add_test(NAME AnalysisSchemaValidation
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_analysis_schema.py
+              --cli $<TARGET_FILE:dwarflens>
+              --schema ${CMAKE_CURRENT_SOURCE_DIR}/schema/analysis.v1.schema.json
+              --target $<TARGET_FILE:dwarflens>
+    )
+  endif()
+
   # CTest properties
   set_tests_properties(SpanReaderRangeMap WasmParser MachoPeParser DwarfExtraction PROPERTIES
     TIMEOUT 60
   )
+  if(Python3_FOUND)
+    set_tests_properties(AnalysisSchemaValidation PROPERTIES TIMEOUT 30)
+  endif()
   if(NOT DWARFLENS_BUILD_LIBFUZZER)
     set_tests_properties(FuzzResilience PROPERTIES TIMEOUT 120)
   endif()
