@@ -8,7 +8,7 @@
 - [x] A2. Backend skeleton in server/
 - [x] A3. Data model and migrations
 - [x] A4. Authentication and tenant isolation
-- [ ] A5. Ingest and read API
+- [x] A5. Ingest and read API
 - [ ] A6. GitHub Action upgrade (action/)
 
 ## TIER B: Product (medium difficulty)
@@ -48,3 +48,7 @@
 ### A4: Authentication and Tenant Isolation
 - **Completed:** Built GitHub OAuth flow, secure httpOnly session cookies, SHA-256 hashed API keys with visible prefixes, and tenant resolution middleware enforcing role hierarchy (owner/member/viewer). Implemented test suite proving cross-tenant read/write isolation.
 - **Verification:** Ran `npm test` in `server/` (12/12 tests passed including all 11 isolation scenarios), TypeScript build clean, CTest (6/6 passed), and web build cleanly succeeded.
+
+### A5: Ingest and Read API
+- **Completed:** Implemented `POST /api/v1/analyses` (Ajv schema validation against schema v1, 5 MB payload limit, sliding window rate limiting, idempotency on project+commit+build_name), `GET /api/v1/projects/:id/analyses` with summary columns, `GET /api/v1/analyses/:id`, and `GET /api/v1/projects/:id/diff?base=&head=` with section, symbol, and struct padding delta calculations.
+- **Verification:** Ran `npm test` in `server/` (21/21 tests passed across all 3 test files), clean TypeScript build, verified CTest (6/6 passed), and confirmed web build succeeded.

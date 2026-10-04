@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { authenticate } from './middleware/auth.js';
 import { authRouter } from './routes/auth.js';
 import { projectsRouter, orgRouter } from './routes/projects.js';
+import { analysesRouter } from './routes/analyses.js';
 
 export const app = new Hono();
 
@@ -29,5 +30,6 @@ app.get('/health', (c) => {
 app.route('/api/v1/auth', authRouter);
 app.route('/api/v1', projectsRouter);
 app.route('/api/v1', orgRouter);
+app.route('/api/v1', analysesRouter);
 
 export default app;

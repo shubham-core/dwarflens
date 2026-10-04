@@ -20,11 +20,13 @@ describe('Tenant Isolation and Security Suite', () => {
   let apiKeyIdB: string;
 
   beforeAll(async () => {
+    const runId = Math.random().toString(36).substring(7);
+
     // 1. Create User A, Org A, Project A, API Key A
     const loginARes = await app.request('/api/v1/auth/dev-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'user-a@example.com', name: 'User A', orgName: 'Org A' }),
+      body: JSON.stringify({ email: `user-a-${runId}@example.com`, name: 'User A', orgName: `Org A ${runId}` }),
     });
     expect(loginARes.status).toBe(200);
     const loginAData = await loginARes.json();
@@ -45,8 +47,8 @@ describe('Tenant Isolation and Security Suite', () => {
       },
       body: JSON.stringify({
         name: 'Project Alpha',
-        slug: 'alpha',
-        repo: 'shubham-core/alpha',
+        slug: `alpha-${runId}`,
+        repo: `shubham-core/alpha-${runId}`,
       }),
     });
     expect(projARes.status).toBe(201);
@@ -69,7 +71,7 @@ describe('Tenant Isolation and Security Suite', () => {
     const loginBRes = await app.request('/api/v1/auth/dev-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'user-b@example.com', name: 'User B', orgName: 'Org B' }),
+      body: JSON.stringify({ email: `user-b-${runId}@example.com`, name: 'User B', orgName: `Org B ${runId}` }),
     });
     expect(loginBRes.status).toBe(200);
     const loginBData = await loginBRes.json();
@@ -90,8 +92,8 @@ describe('Tenant Isolation and Security Suite', () => {
       },
       body: JSON.stringify({
         name: 'Project Beta',
-        slug: 'beta',
-        repo: 'shubham-core/beta',
+        slug: `beta-${runId}`,
+        repo: `shubham-core/beta-${runId}`,
       }),
     });
     expect(projBRes.status).toBe(201);
