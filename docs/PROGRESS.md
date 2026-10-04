@@ -12,7 +12,7 @@
 - [x] A6. GitHub Action upgrade (action/)
 
 ## TIER B: Product (medium difficulty)
-- [ ] B1. Dashboard in web/
+- [x] B1. Dashboard in web/
 - [ ] B2. Shareable report links
 - [ ] B3. Budgets
 - [ ] B4. Alerts
@@ -56,3 +56,7 @@
 ### A6: GitHub Action Upgrade (action/)
 - **Completed:** Added optional `api-url`, `api-key`, and `build-name` inputs to `action/action.yml` for automated analysis JSON upload via curl. Upgraded single PR comment tracking via marker detection and GitHub CLI (`gh api`). Added complete copy-paste workflow documentation in `action/README.md`.
 - **Verification:** Ran full suite (`npm test --prefix server`, `ctest`, `npm run build --prefix web`) all green.
+
+### B1: Dashboard in web/
+- **Completed:** Added client-side SPA routing (`#try`, `#login`, `#projects`, `#projects/:id`, `#analyses/:id`, `#compare`). Preserved 100% client-side Wasm analyzer as "Try it" page. Added login page, projects list, create project modal (reveals generated API key once with copy action), project detail page with branch filter, SVG size history line chart, analyses history table with dual-selection comparison launcher, analysis detail page reusing full visualizers, and compare-two-analyses diff view.
+- **Verification:** Built cleanly (`npm run build --prefix web`), all server vitest suites passed (21/21), ctest passed (6/6).
