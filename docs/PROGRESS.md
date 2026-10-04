@@ -7,7 +7,7 @@
 - [x] A1. Analysis JSON contract
 - [x] A2. Backend skeleton in server/
 - [x] A3. Data model and migrations
-- [ ] A4. Authentication and tenant isolation
+- [x] A4. Authentication and tenant isolation
 - [ ] A5. Ingest and read API
 - [ ] A6. GitHub Action upgrade (action/)
 
@@ -44,3 +44,7 @@
 ### A3: Data Model and Migrations
 - **Completed:** Implemented multi-tenant Drizzle schema for `users`, `sessions`, `orgs`, `org_members`, `projects`, `api_keys`, `analyses`, and `share_links` with compound indexes on `(project_id, created_at)` and `(project_id, branch)`. Generated migration `0000_living_exodus.sql` and documented schema in `docs/DATA_MODEL.md`.
 - **Verification:** Generated SQL migrations with `npm run db:generate`, confirmed TypeScript typecheck and Vitest tests pass in `server/`, ran CTest (6/6 green), and verified web build.
+
+### A4: Authentication and Tenant Isolation
+- **Completed:** Built GitHub OAuth flow, secure httpOnly session cookies, SHA-256 hashed API keys with visible prefixes, and tenant resolution middleware enforcing role hierarchy (owner/member/viewer). Implemented test suite proving cross-tenant read/write isolation.
+- **Verification:** Ran `npm test` in `server/` (12/12 tests passed including all 11 isolation scenarios), TypeScript build clean, CTest (6/6 passed), and web build cleanly succeeded.
