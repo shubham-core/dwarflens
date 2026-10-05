@@ -175,6 +175,21 @@ runs:
         echo "analysis_id=${ANALYSIS_ID}" >> $GITHUB_OUTPUT
         echo "✅ Analysis uploaded successfully (ID: ${ANALYSIS_ID})"
 
+        BUDGET_PASSED=$(echo "${RESPONSE}" | jq -r '.budget_status.passed // true')
+        if [ "${BUDGET_PASSED}" = "false" ]; then
+          BUDGET_REASONS=$(echo "${RESPONSE}" | jq -r '.budget_status.reasons // [] | join("\n- ")')
+          echo "❌ Project budget check failed on DwarfLens server:"
+          echo "- ${BUDGET_REASONS}"
+          
+          REPORT_FILE="${RUNNER_TEMP}/dwarflens_report.md"
+          echo -e "\n\n### ❌ DwarfLens CI Budget Failures\n- ${BUDGET_REASONS}\n" >> "${REPORT_FILE}"
+          echo -e "\n\n### ❌ DwarfLens CI Budget Failures\n- ${BUDGET_REASONS}\n" >> "$GITHUB_STEP_SUMMARY"
+          
+          exit 1
+        else
+          echo "✅ All project budgets passed successfully."
+        fi
+
     - name: Post PR Comment
       if: github.event_name == 'pull_request'
       shell: bash

@@ -49,6 +49,63 @@ projectsRouter.get('/projects/:id', requireAuth, async (c) => {
   return c.json({ project });
 });
 
+// Configure Project Budgets
+projectsRouter.put('/projects/:id/budgets', requireAuth, async (c) => {
+  const projectId = c.req.param('id');
+  const user = c.get('user');
+  const apiKey = c.get('apiKey');
+
+  const [project] = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+
+  // Authorization check (must be member or owner)
+  if (apiKey) {
+    if (apiKey.orgId !== project.orgId) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+  } else if (user) {
+    const [membership] = await db
+      .select()
+      .from(orgMembers)
+      .where(and(eq(orgMembers.orgId, project.orgId), eq(orgMembers.userId, user.id)))
+      .limit(1);
+
+    if (!membership || (membership.role !== 'owner' && membership.role !== 'member')) {
+      return c.json({ error: 'Forbidden: Insufficient permissions to modify budgets' }, 403);
+    }
+  }
+
+  const { max_total_size, max_growth_bytes, fail_on_padding_regression } = await c.req.json();
+
+  const currentSettings = (project.settings as Record<string, any>) || {};
+  const updatedSettings = {
+    ...currentSettings,
+    budgets: {
+      max_total_size: max_total_size !== undefined ? Number(max_total_size) : undefined,
+      max_growth_bytes: max_growth_bytes !== undefined ? Number(max_growth_bytes) : undefined,
+      fail_on_padding_regression: Boolean(fail_on_padding_regression),
+    },
+  };
+
+  const [updated] = await db
+    .update(projects)
+    .set({
+      settings: updatedSettings,
+      updatedAt: new Date(),
+    })
+    .where(eq(projects.id, projectId))
+    .returning();
+
+  return c.json({ project: updated, budgets: updatedSettings.budgets });
+});
+
 // ---------------------------------------------------------------------------
 // Org-Scoped Project Routes
 // ---------------------------------------------------------------------------

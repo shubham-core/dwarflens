@@ -6,6 +6,7 @@ import { AuthContextVariables, requireAuth } from '../middleware/auth.js';
 import { validateAnalysisJson, getValidationErrors } from '../schema/validator.js';
 import { rateLimiter } from '../middleware/rateLimit.js';
 import { computeAnalysisDiff } from '../diff/engine.js';
+import { evaluateBudgets } from '../budgets/evaluator.js';
 
 export const analysesRouter = new Hono<{ Variables: AuthContextVariables }>();
 
@@ -132,20 +133,6 @@ analysesRouter.post(
       )
       .limit(1);
 
-    if (existing) {
-      return c.json(
-        {
-          status: 'existing',
-          id: existing.id,
-          project_id: existing.projectId,
-          commit_sha: existing.commitSha,
-          build_name: existing.buildName,
-          created_at: existing.createdAt,
-        },
-        200
-      );
-    }
-
     // Calculate summary metrics
     const totalSize = Number(payload.file_size || 0);
     const flashSize = Number(payload.flash_size || 0);
@@ -158,6 +145,49 @@ analysesRouter.post(
     for (const st of payload.structs || []) {
       paddingBytes += Number(st.total_padding_bytes || 0);
       cacheLineCrossings += (st.cache_line_crossings?.length || 0);
+    }
+
+    // Look up base analysis for growth/padding comparisons
+    const baseCommit = c.req.query('base') || payload.metadata?.base_commit_sha;
+    let baseAnalysis: any = null;
+    if (baseCommit) {
+      [baseAnalysis] = await db
+        .select()
+        .from(analyses)
+        .where(and(eq(analyses.projectId, project.id), eq(analyses.commitSha, baseCommit)))
+        .orderBy(desc(analyses.createdAt))
+        .limit(1);
+    } else {
+      [baseAnalysis] = await db
+        .select()
+        .from(analyses)
+        .where(and(eq(analyses.projectId, project.id), eq(analyses.branch, 'main')))
+        .orderBy(desc(analyses.createdAt))
+        .limit(1);
+    }
+
+    const budgets = (project.settings as Record<string, any>)?.budgets;
+    const budgetStatus = evaluateBudgets({
+      budgets,
+      currentSize: totalSize,
+      currentPadding: paddingBytes,
+      baseSize: baseAnalysis?.totalSize,
+      basePadding: baseAnalysis?.paddingBytes,
+    });
+
+    if (existing) {
+      return c.json(
+        {
+          status: 'existing',
+          id: existing.id,
+          project_id: existing.projectId,
+          commit_sha: existing.commitSha,
+          build_name: existing.buildName,
+          created_at: existing.createdAt,
+          budget_status: budgetStatus,
+        },
+        200
+      );
     }
 
     // Insert analysis
@@ -188,6 +218,7 @@ analysesRouter.post(
         branch: inserted.branch,
         build_name: inserted.buildName,
         created_at: inserted.createdAt,
+        budget_status: budgetStatus,
       },
       201
     );
