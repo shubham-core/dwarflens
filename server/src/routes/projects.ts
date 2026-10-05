@@ -49,6 +49,45 @@ projectsRouter.get('/projects/:id', requireAuth, async (c) => {
   return c.json({ project });
 });
 
+// Delete Project (Owner only)
+projectsRouter.delete('/projects/:id', requireAuth, async (c) => {
+  const projectId = c.req.param('id');
+  const user = c.get('user');
+  const apiKey = c.get('apiKey');
+
+  const [project] = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+
+  // Authorization check (Only owner can delete project)
+  if (apiKey) {
+    if (apiKey.orgId !== project.orgId) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+  } else if (user) {
+    const [membership] = await db
+      .select()
+      .from(orgMembers)
+      .where(and(eq(orgMembers.orgId, project.orgId), eq(orgMembers.userId, user.id)))
+      .limit(1);
+
+    if (!membership || membership.role !== 'owner') {
+      return c.json({ error: 'Forbidden: Only organization owners can delete projects' }, 403);
+    }
+  }
+
+  // Delete project (Postgres foreign keys cascade delete analyses, share links, and keys)
+  await db.delete(projects).where(eq(projects.id, projectId));
+
+  return c.json({ status: 'deleted', id: projectId });
+});
+
 // Configure Project Budgets
 projectsRouter.put('/projects/:id/budgets', requireAuth, async (c) => {
   const projectId = c.req.param('id');

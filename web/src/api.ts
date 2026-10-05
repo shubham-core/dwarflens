@@ -167,4 +167,13 @@ export const api = {
   async getSharedAnalysis(token: string): Promise<any> {
     return req(`/shared/${token}`);
   },
+
+  async deleteProject(projectId: string): Promise<{ status: string; id: string }> {
+    return req(`/projects/${projectId}`, { method: 'DELETE' });
+  },
+
+  async deleteAccount(): Promise<{ status: string; id: string }> {
+    return req('/auth/me', { method: 'DELETE' });
+  },
 };
+

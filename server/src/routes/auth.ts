@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { setCookie, deleteCookie } from 'hono/cookie';
 import crypto from 'crypto';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { users, orgs, orgMembers } from '../db/schema.js';
 import { env } from '../env.js';
@@ -190,3 +190,35 @@ authRouter.post('/logout', async (c) => {
   deleteCookie(c, 'dwarflens_session', { path: '/' });
   return c.json({ status: 'logged_out' });
 });
+
+// 6. Delete Account (Permanently erase user and personal organizations)
+authRouter.delete('/me', requireUser, async (c) => {
+  const user = c.get('user')!;
+
+  // Find organizations where this user is an owner
+  const ownerMemberships = await db
+    .select({ orgId: orgMembers.orgId })
+    .from(orgMembers)
+    .where(and(eq(orgMembers.userId, user.id), eq(orgMembers.role, 'owner')));
+
+  for (const m of ownerMemberships) {
+    // If no other owners exist in this org, delete the entire org (cascading all projects & analyses)
+    const otherOwners = await db
+      .select({ id: orgMembers.id })
+      .from(orgMembers)
+      .where(and(eq(orgMembers.orgId, m.orgId), eq(orgMembers.role, 'owner')));
+
+    if (otherOwners.length <= 1) {
+      await db.delete(orgs).where(eq(orgs.id, m.orgId));
+    }
+  }
+
+  // Delete user record (cascades sessions and remaining memberships)
+  await db.delete(users).where(eq(users.id, user.id));
+
+  // Clear session cookie
+  deleteCookie(c, 'dwarflens_session', { path: '/' });
+
+  return c.json({ status: 'deleted', id: user.id });
+});
+
