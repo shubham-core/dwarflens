@@ -5,6 +5,7 @@ import { authenticate } from './middleware/auth.js';
 import { authRouter } from './routes/auth.js';
 import { projectsRouter, orgRouter } from './routes/projects.js';
 import { analysesRouter } from './routes/analyses.js';
+import { sharesRouter } from './routes/shares.js';
 
 export const app = new Hono();
 
@@ -31,5 +32,6 @@ app.route('/api/v1/auth', authRouter);
 app.route('/api/v1', projectsRouter);
 app.route('/api/v1', orgRouter);
 app.route('/api/v1', analysesRouter);
+app.route('/api/v1', sharesRouter);
 
 export default app;
