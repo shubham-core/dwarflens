@@ -1,6 +1,7 @@
 import { api, User, OrgMembership, Project, AnalysisSummary, DiffResult } from './api.js';
 import { renderSizeHistoryChart } from './chart.js';
 import { renderStoredAnalysis, resetResultsToTryView } from './main.js';
+import { renderLandingPage } from './landing.js';
 
 export class DashboardApp {
   user: User | null = null;
@@ -67,6 +68,7 @@ export class DashboardApp {
 
   hideAllViews(): void {
     const viewIds = [
+      'view-landing',
       'view-try',
       'view-login',
       'view-projects',
@@ -80,11 +82,19 @@ export class DashboardApp {
     }
 
     // Update active nav link classes
-    const hash = window.location.hash || '#try';
+    const hash = window.location.hash || '#landing';
+    const isLanding = hash === '' || hash === '#' || hash.startsWith('#landing');
     document.querySelectorAll('.main-nav-tab').forEach((tab) => {
       const tabTarget = tab.getAttribute('data-view');
-      if ((hash.startsWith('#try') && tabTarget === 'try') ||
-          (!hash.startsWith('#try') && !hash.startsWith('#login') && tabTarget === 'dashboard')) {
+      if (isLanding && tabTarget === 'landing') {
+        tab.classList.add('active');
+      } else if (hash.startsWith('#pricing') && tabTarget === 'pricing') {
+        tab.classList.add('active');
+      } else if (hash.startsWith('#faq') && tabTarget === 'faq') {
+        tab.classList.add('active');
+      } else if (hash.startsWith('#try') && tabTarget === 'try') {
+        tab.classList.add('active');
+      } else if (!isLanding && !hash.startsWith('#try') && !hash.startsWith('#login') && !hash.startsWith('#pricing') && !hash.startsWith('#faq') && tabTarget === 'dashboard') {
         tab.classList.add('active');
       } else {
         tab.classList.remove('active');
@@ -93,10 +103,12 @@ export class DashboardApp {
   }
 
   handleRoute(): void {
-    const hash = window.location.hash || '#try';
+    const hash = window.location.hash || '#landing';
     this.hideAllViews();
 
-    if (hash === '#try' || hash === '') {
+    if (hash === '' || hash === '#' || hash === '#landing' || hash.startsWith('#pricing') || hash.startsWith('#faq')) {
+      this.renderLandingView(hash);
+    } else if (hash === '#try') {
       resetResultsToTryView();
       const el = document.getElementById('view-try');
       if (el) el.style.display = 'block';
@@ -124,8 +136,26 @@ export class DashboardApp {
     } else if (hash.startsWith('#compare')) {
       this.renderCompareView();
     } else {
-      const el = document.getElementById('view-try');
-      if (el) el.style.display = 'block';
+      this.renderLandingView(hash);
+    }
+  }
+
+  renderLandingView(hash: string): void {
+    const el = document.getElementById('view-landing');
+    if (!el) return;
+    el.style.display = 'block';
+    renderLandingPage(el);
+
+    if (hash.startsWith('#pricing')) {
+      setTimeout(() => {
+        document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
+    } else if (hash.startsWith('#faq')) {
+      setTimeout(() => {
+        document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
 
