@@ -7,6 +7,7 @@ import { validateAnalysisJson, getValidationErrors } from '../schema/validator.j
 import { rateLimiter } from '../middleware/rateLimit.js';
 import { computeAnalysisDiff } from '../diff/engine.js';
 import { evaluateBudgets } from '../budgets/evaluator.js';
+import { sendBudgetAlerts } from '../alerts/notifier.js';
 
 export const analysesRouter = new Hono<{ Variables: AuthContextVariables }>();
 
@@ -208,6 +209,16 @@ analysesRouter.post(
         rawData: payload,
       })
       .returning();
+
+    if (!budgetStatus.passed) {
+      await sendBudgetAlerts({
+        project,
+        analysis: inserted,
+        reasons: budgetStatus.reasons,
+      }).catch((err) => {
+        console.error('[alerts] Failed to send budget alerts:', err);
+      });
+    }
 
     return c.json(
       {

@@ -13,6 +13,7 @@ const envSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().optional().default(''),
   APP_URL: z.string().url().default('http://localhost:5173'),
   API_URL: z.string().url().default('http://localhost:3000'),
+  RESEND_API_KEY: z.string().optional().default(''),
 });
 
 export const env = envSchema.parse(process.env);

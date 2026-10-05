@@ -106,6 +106,62 @@ projectsRouter.put('/projects/:id/budgets', requireAuth, async (c) => {
   return c.json({ project: updated, budgets: updatedSettings.budgets });
 });
 
+// Configure Project Alerts
+projectsRouter.put('/projects/:id/alerts', requireAuth, async (c) => {
+  const projectId = c.req.param('id');
+  const user = c.get('user');
+  const apiKey = c.get('apiKey');
+
+  const [project] = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+
+  // Authorization check (must be member or owner)
+  if (apiKey) {
+    if (apiKey.orgId !== project.orgId) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+  } else if (user) {
+    const [membership] = await db
+      .select()
+      .from(orgMembers)
+      .where(and(eq(orgMembers.orgId, project.orgId), eq(orgMembers.userId, user.id)))
+      .limit(1);
+
+    if (!membership || (membership.role !== 'owner' && membership.role !== 'member')) {
+      return c.json({ error: 'Forbidden: Insufficient permissions to modify alert settings' }, 403);
+    }
+  }
+
+  const { slack_webhook_url, email } = await c.req.json();
+
+  const currentSettings = (project.settings as Record<string, any>) || {};
+  const updatedSettings = {
+    ...currentSettings,
+    alerts: {
+      slack_webhook_url: slack_webhook_url ? String(slack_webhook_url) : undefined,
+      email: email ? String(email) : undefined,
+    },
+  };
+
+  const [updated] = await db
+    .update(projects)
+    .set({
+      settings: updatedSettings,
+      updatedAt: new Date(),
+    })
+    .where(eq(projects.id, projectId))
+    .returning();
+
+  return c.json({ project: updated, alerts: updatedSettings.alerts });
+});
+
 // ---------------------------------------------------------------------------
 // Org-Scoped Project Routes
 // ---------------------------------------------------------------------------

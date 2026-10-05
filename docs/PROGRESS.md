@@ -15,7 +15,7 @@
 - [x] B1. Dashboard in web/
 - [x] B2. Shareable report links
 - [x] B3. Budgets
-- [ ] B4. Alerts
+- [x] B4. Alerts
 - [ ] B5. Teams
 
 ## TIER C: Simple Tasks and Polish
@@ -68,4 +68,9 @@
 ### B3: Budgets
 - **Completed:** Implemented project budget settings (`max_total_size`, `max_growth_bytes`, `fail_on_padding_regression`) and `PUT /api/v1/projects/:id/budgets`. Integrated automated budget evaluation into `POST /api/v1/analyses` against base analyses. Updated GitHub Action (`action/action.yml`) to parse `budget_status`, write failures to PR comments / step summary, and fail CI with exit code 1 on violations.
 - **Verification:** Added `server/tests/budgets.test.ts` (6/6 tests passed covering size, growth, and padding regression failures and passes), all server vitest suites passed (31/31), CTest passed (6/6), and web build succeeded.
+
+### B4: Alerts
+- **Completed:** Added budget alert notification system supporting optional Slack incoming-webhook URLs and Resend email alerts. Implemented `PUT /api/v1/projects/:id/alerts` to configure project-level alerts. Ingest triggers alert dispatching on `main`/`master` branch budget failures, falling back to org owner email when custom project recipient is omitted.
+- **Verification:** Added `server/tests/alerts.test.ts` (5/5 tests passed covering Slack webhooks, Resend emails, branch filtering, and org owner fallback), all server vitest suites passed (36/36), CTest passed (6/6), and web build succeeded.
+
 
