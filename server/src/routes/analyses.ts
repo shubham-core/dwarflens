@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { eq, and, desc } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { analyses, projects, orgMembers } from '../db/schema.js';
+import { analyses, projects, orgMembers, orgs } from '../db/schema.js';
 import { AuthContextVariables, requireAuth } from '../middleware/auth.js';
+import { PLAN_LIMITS, PlanType } from '../billing/types.js';
 import { validateAnalysisJson, getValidationErrors } from '../schema/validator.js';
 import { rateLimiter } from '../middleware/rateLimit.js';
 import { computeAnalysisDiff } from '../diff/engine.js';
@@ -110,6 +111,31 @@ analysesRouter.post(
 
       // Auto-create project if it doesn't exist yet for this repo
       if (!project) {
+        // Enforce plan limit before creating project
+        const [org] = await db
+          .select({ plan: orgs.plan })
+          .from(orgs)
+          .where(eq(orgs.id, orgId))
+          .limit(1);
+
+        const plan = (org?.plan || 'free') as PlanType;
+        const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+        const existingProjects = await db
+          .select({ id: projects.id })
+          .from(projects)
+          .where(eq(projects.orgId, orgId));
+
+        if (existingProjects.length >= limits.maxProjects) {
+          return c.json(
+            {
+              error: `Plan limit reached: The ${plan} plan allows up to ${limits.maxProjects} project(s). Upgrade to Pro to add more projects.`,
+              plan,
+            },
+            403
+          );
+        }
+
         const repoName = payload.metadata.repo.split('/').pop() || 'binary';
         const slug = `${repoName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now().toString(36)}`;
         [project] = await db

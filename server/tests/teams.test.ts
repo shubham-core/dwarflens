@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { app } from '../src/app.js';
+import { db } from '../src/db/client.js';
+import { orgs } from '../src/db/schema.js';
+import { eq } from 'drizzle-orm';
 
 describe('Teams and Role Enforcement Suite (owner / member / viewer)', () => {
   let orgId: string;
@@ -30,6 +33,9 @@ describe('Teams and Role Enforcement Suite (owner / member / viewer)', () => {
       headers: { Cookie: `dwarflens_session=${ownerSession}` },
     });
     orgId = (await meRes.json()).orgs[0].orgId;
+
+    // Set plan to 'team' so multi-project creation is permitted
+    await db.update(orgs).set({ plan: 'team' }).where(eq(orgs.id, orgId));
 
     // 2. Create Member user
     const memberLogin = await app.request('/api/v1/auth/dev-login', {
