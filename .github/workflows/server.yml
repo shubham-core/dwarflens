@@ -1,0 +1,76 @@
+name: Server CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'server/**'
+      - 'schema/**'
+      - '.github/workflows/server.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - 'schema/**'
+      - '.github/workflows/server.yml'
+
+jobs:
+  test-server:
+    name: Backend API Tests & Build
+    runs-on: ubuntu-24.04
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: dwarflens
+          POSTGRES_PASSWORD: dwarflens_dev_password
+          POSTGRES_DB: dwarflens
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dwarflens -d dwarflens"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'server/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Run database migrations
+        working-directory: server
+        env:
+          DATABASE_URL: postgres://dwarflens:dwarflens_dev_password@localhost:5432/dwarflens
+          SESSION_SECRET: test_session_secret_for_ci_pipeline_32chars_minimum
+          PORT: 3000
+          NODE_ENV: test
+        run: npm run db:migrate
+
+      - name: Run Vitest test suite
+        working-directory: server
+        env:
+          DATABASE_URL: postgres://dwarflens:dwarflens_dev_password@localhost:5432/dwarflens
+          SESSION_SECRET: test_session_secret_for_ci_pipeline_32chars_minimum
+          PORT: 3000
+          NODE_ENV: test
+          DEV_LOGIN_ENABLED: "true"
+        run: npm test
+
+      - name: Build TypeScript
+        working-directory: server
+        run: npm run build
+
+      - name: Test Docker build
+        run: docker build -t dwarflens-server:ci server
