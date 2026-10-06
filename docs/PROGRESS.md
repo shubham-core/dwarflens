@@ -24,7 +24,7 @@
 - [x] C3. Legal and data control
 - [x] C4. Billing
 - [x] C5. Deployment
-- [ ] C6. Repo polish
+- [x] C6. Repo polish
 
 ---
 ## Task Log
@@ -96,6 +96,11 @@
 ### C5: Deployment
 - **Completed:** Authored production multi-stage Alpine Dockerfile for the backend server (`server/Dockerfile` and `server/.dockerignore`) with unprivileged `node` user runtime and dynamic schema/migrations mounting. Created comprehensive production deployment guide in `docs/DEPLOYMENT.md` detailing API deployment on Fly.io and Railway, frontend SPA hosting on Vercel and Cloudflare Pages, managed serverless PostgreSQL setup on Neon/Supabase, and full environment variables reference. Configured automated GitHub Actions workflow (`.github/workflows/server.yml`) running server migrations, Vitest test suites against a transient PostgreSQL service container, TypeScript compilation, and Docker smoke build on every PR/push.
 - **Verification:** Verified Docker build locally (`docker build -t dwarflens-server:test server`), smoke tested container startup and health checks (`GET /health` returning 200 OK), verified CTest (6/6 passed), all Vitest server tests passed (58/58), and web build cleanly succeeded.
+
+### C6: Repo Polish and Repository Documentation
+- **Completed:** Authored `CONTRIBUTING.md` outlining architectural non-negotiables (zero-knowledge privacy, zero-dependency C++23, no HTTP in core, tenant isolation), complete directory map, build/test workflows for all subsystems, and commit conventions. Added SaaS Cloud platform section and quickstart to root `README.md`. Documented suggested GitHub About metadata and topic tags in `docs/REPO_POLISH.md`. Audited and verified `.github/workflows/release.yml` for multi-platform binary compilation, sha256 checksum generation, and automated GitHub Releases packaging.
+- **Verification:** Ran all test suites across the repository: CTest (6/6 passed), Server Vitest (9 test files, 58/58 passed), clean web build, and verified release workflow configuration.
+
 
 
 
