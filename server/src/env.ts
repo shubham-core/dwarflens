@@ -28,6 +28,7 @@ const envSchema = z.object({
   APP_URL: z.string().url().default('http://localhost:5173'),
   API_URL: z.string().url().default('http://localhost:3000'),
   RESEND_API_KEY: z.string().optional().default(''),
+  DEV_LOGIN_ENABLED: z.string().optional().default('false'),
 });
 
 export const env = envSchema.parse(process.env);

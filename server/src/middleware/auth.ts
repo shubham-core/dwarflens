@@ -24,7 +24,7 @@ export interface AuthContextVariables {
 export const authenticate = createMiddleware<{
   Variables: AuthContextVariables;
 }>(async (c, next) => {
-  // 1. Check Authorization header (API key or Bearer token)
+  // 1. Check Authorization header (API key or Bearer session token)
   const authHeader = c.req.header('Authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.slice(7).trim();
@@ -34,6 +34,14 @@ export const authenticate = createMiddleware<{
         c.set('apiKey', apiKey);
         c.set('authType', 'api_key');
         c.set('user', null);
+        return next();
+      }
+    } else {
+      const sessionData = await validateSession(token);
+      if (sessionData) {
+        c.set('user', sessionData.user);
+        c.set('apiKey', null);
+        c.set('authType', 'session');
         return next();
       }
     }

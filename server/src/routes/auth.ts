@@ -96,7 +96,7 @@ authRouter.get('/github/callback', async (c) => {
     setCookie(c, 'dwarflens_session', sessionId, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: 'Lax',
+      sameSite: env.NODE_ENV === 'production' ? 'None' : 'Lax',
       path: '/',
       expires: expiresAt,
     });
@@ -108,8 +108,8 @@ authRouter.get('/github/callback', async (c) => {
   }
 });
 
-// 3. Dev login for test suites and local development
-if (env.NODE_ENV !== 'production') {
+// 3. Dev login for test suites, local development, and preview environments
+if (env.NODE_ENV !== 'production' || env.DEV_LOGIN_ENABLED === 'true') {
   authRouter.post('/dev-login', async (c) => {
     const { email, name, orgName } = await c.req.json();
     if (!email) {
@@ -146,8 +146,8 @@ if (env.NODE_ENV !== 'production') {
 
     setCookie(c, 'dwarflens_session', sessionId, {
       httpOnly: true,
-      secure: false,
-      sameSite: 'Lax',
+      secure: env.NODE_ENV === 'production',
+      sameSite: env.NODE_ENV === 'production' ? 'None' : 'Lax',
       path: '/',
       expires: expiresAt,
     });
