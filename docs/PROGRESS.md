@@ -27,6 +27,47 @@
 - [x] C6. Repo polish
 
 ---
+
+## Security & Bug Fix Pass
+
+### P0 — Money and Takeover (do first)
+- [ ] 1. **CORS allowlist** — replace origin-reflection with an allowlist from APP_URL (+ localhost in dev); keep `credentials` only for allowlisted origins.
+- [ ] 2. **Billing webhook signature** — verify Stripe HMAC-SHA256 (`t.payload`, `STRIPE_WEBHOOK_SECRET`, 5-minute tolerance, constant-time compare); reject unsigned requests; look up org via stored `stripe_customer_id`, never trust `org_id` from body.
+- [ ] 3. **Retention cron guard** — require `CRON_SECRET` header (constant-time), add a scheduled GitHub Actions workflow calling it daily.
+- [ ] 4. **Dev login hardening** — only enabled in `NODE_ENV==='development'`; fail startup in production if `SESSION_SECRET` or `DATABASE_URL` use defaults; hide Quick Dev Login form from production web build (show only when `import.meta.env.DEV`).
+- [ ] 5. **GitHub OAuth state cookie** — store `state` in a short-lived httpOnly cookie, verify in callback; link accounts ONLY by GitHub ID or VERIFIED primary email, never fall back to unverified emails.
+- [ ] 6. **DB pool hardening** — add `pool.on('error')` handler, enable TLS verification, run migrations at server startup.
+- [ ] 7. **XSS escaping** — add `escapeHtml` helper, apply to every API/user-controlled value interpolated into `innerHTML` in `dashboard.ts`; add a test with XSS payload and `std::vector<int>`.
+
+### P1 — Finish Payments
+- [ ] 8. **Stripe Checkout** — add `line_items` with price IDs from env, create/store `stripe_customer_id` and subscription ID on orgs (new migration), put `org_id` in `subscription_data[metadata]`, handle `customer.subscription.updated/deleted` and `invoice.payment_failed`, make portal use stored customer, make `getSubscription` read real state; validate success/cancel/return URLs against `APP_URL`.
+- [ ] 9. **Frontend billing UI** — Upgrade buttons on pricing section, Billing page in dashboard (current plan, usage, Upgrade, Manage subscription).
+- [ ] 10. **Enforce plan limits server-side** — alerts only on paid plans, private repos on paid plans, history retention per plan; return `null` limits as the string `"unlimited"` instead of `Infinity`.
+- [ ] 11. **Payment abstraction** — abstract billing behind existing interface; implement Razorpay or Lemon Squeezy if Stripe unavailable (user choice).
+
+### P2 — Permissions and Abuse
+- [ ] 12. **API key scopes** — add `ingest:write` scope by default; CI keys must NOT manage members/keys/billing/delete projects/change budgets; enforce project-scoped keys on every route.
+- [ ] 13. **Alert hardening** — allow `slack_webhook_url` only for `https://hooks.slack.com/services/*`; only send alert emails to verified org members; hide webhook URLs from viewers (return `has_slack_webhook` boolean).
+- [ ] 14. **Pending invitations** — create invitation with token, email it, add user only after they accept while logged in with a verified email.
+- [ ] 15. **Input validation** — validate all route params as UUIDs (400 on bad input), wrap `c.req.json()` in safe parsing, add `app.onError` returning generic 500 JSON, enforce 5 MB body limit via middleware.
+- [ ] 16. **Rate limiting** — use platform trusted client IP (not raw `X-Forwarded-For`), apply to login/OAuth/share/ingest routes, document multi-instance shared store requirement.
+- [ ] 17. **Session hardening** — hash session IDs in DB, delete expired sessions periodically, require typed confirmation for destructive actions, don't delete orgs that still have other members.
+- [ ] 18. **Dependency audit** — upgrade drizzle-orm to patched version, run `npm audit` for server and web.
+
+### P3 — Login on Other Domains
+- [ ] 19. **Cross-origin login** — put app and API on same site or implement one-time-code handoff (OAuth callback redirects to `APP_URL#code=...`, frontend exchanges via POST for session token in `sessionStorage`).
+
+### P4 — GitHub Action
+- [ ] 20. **Action injection safety** — never interpolate `${{ }}` in `run:` scripts; pass all inputs and GitHub context through `env:` and reference `"$VAR"` in bash.
+- [ ] 21. **Binary download** — download pinned release binary with SHA256 check or build from `${{ github.action_path }}/..`; honor `dwarflens-version`.
+- [ ] 22. **Job failure handling** — use `if: always()` / `continue-on-error` so upload and PR comment run even when thresholds fail; fail job at end; make PR comment non-fatal for fork PRs; document `permissions: pull-requests: write`.
+- [ ] 23. **Fix macos runner and tag v0.1.0** — fix or replace macos-13 runner in `release.yml`, create first tag `v0.1.0`.
+
+### P5 — Hygiene
+- [ ] 24. **Cleanup** — remove `web/dist` from git, fix double-slash in `#shared/`, normalize `APP_URL`, set `NODE_ENV=production` explicitly in Render config, add GitHub branch rule requiring CI before merge.
+- [ ] 25. **Regression tests and security docs** — add regression tests for all items above, and `docs/SECURITY.md`.
+
+---
 ## Task Log
 
 ### Step 0: Orient First
