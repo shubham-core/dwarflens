@@ -18,8 +18,12 @@ export const authRouter = new Hono<{ Variables: AuthContextVariables }>();
 // 1. Initiate GitHub OAuth
 authRouter.get('/github', (c) => {
   const state = crypto.randomBytes(16).toString('hex');
-  // In a full production app state can be stored in cookie with short TTL
-  return c.redirect(getGitHubAuthUrl(state));
+  const reqHost = c.req.header('x-forwarded-host') || c.req.header('host');
+  const proto = c.req.header('x-forwarded-proto') || 'https';
+  const dynamicRedirectUri = reqHost && !reqHost.includes('localhost')
+    ? `${proto}://${reqHost}/api/v1/auth/github/callback`
+    : undefined;
+  return c.redirect(getGitHubAuthUrl(state, dynamicRedirectUri));
 });
 
 // 2. GitHub OAuth Callback
@@ -101,7 +105,9 @@ authRouter.get('/github/callback', async (c) => {
       expires: expiresAt,
     });
 
-    return c.redirect(env.APP_URL);
+    const targetUrl = new URL(env.APP_URL);
+    targetUrl.hash = '#projects';
+    return c.redirect(targetUrl.toString());
   } catch (err: any) {
     console.error('OAuth callback error:', err);
     return c.json({ error: 'OAuth authentication failed', details: err.message }, 500);
