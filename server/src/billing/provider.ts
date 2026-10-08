@@ -95,7 +95,7 @@ export class StripeBillingProvider implements BillingProvider {
     };
   }
 
-  async handleWebhook(payload: string, _signature: string): Promise<WebhookResult> {
+  async handleWebhook(payload: string, signature: string): Promise<WebhookResult> {
     let data: any;
     try {
       data = JSON.parse(payload);
@@ -109,23 +109,70 @@ export class StripeBillingProvider implements BillingProvider {
 
     if (event === 'checkout.session.completed') {
       const session = data.data?.object || data.session || {};
-      orgId = session.client_reference_id || session.metadata?.org_id;
+      const customerId = session.customer ? String(session.customer) : undefined;
+      const clientRefOrgId = session.client_reference_id || session.metadata?.org_id;
       plan = (session.metadata?.plan || 'pro') as PlanType;
 
-      if (orgId && plan) {
+      const isUuid = (val?: string): val is string => !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+      let targetOrg: { id: string } | undefined;
+      if (customerId) {
+        const [foundByCustomer] = await db
+          .select({ id: orgs.id })
+          .from(orgs)
+          .where(eq(orgs.stripeCustomerId, customerId))
+          .limit(1);
+        targetOrg = foundByCustomer;
+      }
+      if (!targetOrg && isUuid(clientRefOrgId)) {
+        const [foundById] = await db
+          .select({ id: orgs.id })
+          .from(orgs)
+          .where(eq(orgs.id, clientRefOrgId))
+          .limit(1);
+        targetOrg = foundById;
+      }
+
+      if (targetOrg && plan) {
+        orgId = targetOrg.id;
         await db
           .update(orgs)
-          .set({ plan, updatedAt: new Date() })
-          .where(eq(orgs.id, orgId));
+          .set({
+            plan,
+            ...(customerId ? { stripeCustomerId: customerId } : {}),
+            updatedAt: new Date(),
+          })
+          .where(eq(orgs.id, targetOrg.id));
       }
     } else if (event === 'customer.subscription.deleted') {
+      const isUuid = (val?: string): val is string => !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
       const subscription = data.data?.object || data.subscription || {};
-      orgId = subscription.metadata?.org_id;
-      if (orgId) {
+      const customerId = subscription.customer ? String(subscription.customer) : undefined;
+
+      let targetOrg: { id: string } | undefined;
+      if (customerId) {
+        const [foundByCustomer] = await db
+          .select({ id: orgs.id })
+          .from(orgs)
+          .where(eq(orgs.stripeCustomerId, customerId))
+          .limit(1);
+        targetOrg = foundByCustomer;
+      }
+      if (!targetOrg && isUuid(subscription.metadata?.org_id)) {
+        const [foundById] = await db
+          .select({ id: orgs.id })
+          .from(orgs)
+          .where(eq(orgs.id, subscription.metadata.org_id))
+          .limit(1);
+        targetOrg = foundById;
+      }
+
+      if (targetOrg) {
+        orgId = targetOrg.id;
         await db
           .update(orgs)
           .set({ plan: 'free', updatedAt: new Date() })
-          .where(eq(orgs.id, orgId));
+          .where(eq(orgs.id, targetOrg.id));
       }
     }
 
