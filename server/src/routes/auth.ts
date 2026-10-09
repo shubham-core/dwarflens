@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { setCookie, deleteCookie } from 'hono/cookie';
+import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
 import crypto from 'crypto';
 import { eq, and } from 'drizzle-orm';
 import { db } from '../db/client.js';
@@ -23,12 +23,37 @@ authRouter.get('/github', (c) => {
   const dynamicRedirectUri = reqHost && !reqHost.includes('localhost')
     ? `${proto}://${reqHost}/api/v1/auth/github/callback`
     : undefined;
+
+  setCookie(c, 'oauth_state', state, {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'Lax',
+    path: '/',
+    maxAge: 600, // 10 minutes
+  });
+
   return c.redirect(getGitHubAuthUrl(state, dynamicRedirectUri));
 });
 
 // 2. GitHub OAuth Callback
 authRouter.get('/github/callback', async (c) => {
   const code = c.req.query('code');
+  const queryState = c.req.query('state');
+  const cookieState = getCookie(c, 'oauth_state');
+
+  // Verify OAuth state cookie
+  if (!queryState || !cookieState) {
+    return c.json({ error: 'Missing OAuth state parameter or state cookie' }, 403);
+  }
+
+  const queryBuf = Buffer.from(queryState, 'utf8');
+  const cookieBuf = Buffer.from(cookieState, 'utf8');
+  if (queryBuf.length !== cookieBuf.length || !crypto.timingSafeEqual(queryBuf, cookieBuf)) {
+    return c.json({ error: 'Invalid OAuth state parameter' }, 403);
+  }
+
+  deleteCookie(c, 'oauth_state');
+
   if (!code) {
     return c.json({ error: 'Missing OAuth authorization code' }, 400);
   }
@@ -45,14 +70,18 @@ authRouter.get('/github/callback', async (c) => {
       .limit(1);
 
     if (!user) {
-      // Find by email or insert
-      const [existingEmail] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, profile.email))
-        .limit(1);
+      // Link account ONLY if email is verified
+      let existingEmailUser: typeof users.$inferSelect | undefined;
+      if (profile.emailVerified && profile.email) {
+        const [existing] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, profile.email))
+          .limit(1);
+        existingEmailUser = existing;
+      }
 
-      if (existingEmail) {
+      if (existingEmailUser) {
         user = (
           await db
             .update(users)
@@ -61,16 +90,25 @@ authRouter.get('/github/callback', async (c) => {
               avatarUrl: profile.avatarUrl,
               updatedAt: new Date(),
             })
-            .where(eq(users.id, existingEmail.id))
+            .where(eq(users.id, existingEmailUser.id))
             .returning()
         )[0];
       } else {
+        // If email is unverified and clashes with an existing user, use a safe noreply address
+        let insertEmail = profile.email;
+        if (!profile.emailVerified) {
+          const [taken] = await db.select().from(users).where(eq(users.email, insertEmail)).limit(1);
+          if (taken) {
+            insertEmail = `gh_${profile.githubId}_${Date.now()}@users.noreply.dwarflens.com`;
+          }
+        }
+
         user = (
           await db
             .insert(users)
             .values({
               githubId: profile.githubId,
-              email: profile.email,
+              email: insertEmail,
               name: profile.name,
               avatarUrl: profile.avatarUrl,
             })
