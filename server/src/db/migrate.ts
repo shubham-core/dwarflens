@@ -22,9 +22,13 @@ export async function runMigrations() {
   const connectionString = env.DATABASE_URL_UNPOOLED || env.DATABASE_URL;
   const isNeon = connectionString.includes('neon.tech') || connectionString.includes('sslmode=require');
 
+  const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false';
   const migrationPool = new Pool({
     connectionString,
-    ssl: isNeon ? { rejectUnauthorized: false } : undefined,
+    ssl: isNeon ? { rejectUnauthorized } : undefined,
+  });
+  migrationPool.on('error', (err) => {
+    console.error('[DB Migration Pool] Pool error:', err);
   });
   const migrationDb = drizzle(migrationPool, { schema });
 
