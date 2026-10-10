@@ -37,7 +37,7 @@
 - [x] 4. **Dev login hardening** — only enabled in `NODE_ENV==='development'`; fail startup in production if `SESSION_SECRET` or `DATABASE_URL` use defaults; hide Quick Dev Login form from production web build (show only when `import.meta.env.DEV`).
 - [x] 5. **GitHub OAuth state cookie** — store `state` in a short-lived httpOnly cookie, verify in callback; link accounts ONLY by GitHub ID or VERIFIED primary email, never fall back to unverified emails.
 - [x] 6. **DB pool hardening** — add `pool.on('error')` handler, enable TLS verification, run migrations at server startup.
-- [ ] 7. **XSS escaping** — add `escapeHtml` helper, apply to every API/user-controlled value interpolated into `innerHTML` in `dashboard.ts`; add a test with XSS payload and `std::vector<int>`.
+- [x] 7. **XSS escaping** — add `escapeHtml` helper, apply to every API/user-controlled value interpolated into `innerHTML` in `dashboard.ts`; add a test with XSS payload and `std::vector<int>`.
 
 ### P1 — Finish Payments
 - [ ] 8. **Stripe Checkout** — add `line_items` with price IDs from env, create/store `stripe_customer_id` and subscription ID on orgs (new migration), put `org_id` in `subscription_data[metadata]`, handle `customer.subscription.updated/deleted` and `invoice.payment_failed`, make portal use stored customer, make `getSubscription` read real state; validate success/cancel/return URLs against `APP_URL`.
