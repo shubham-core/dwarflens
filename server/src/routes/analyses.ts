@@ -126,7 +126,7 @@ analysesRouter.post(
           .from(projects)
           .where(eq(projects.orgId, orgId));
 
-        if (existingProjects.length >= limits.maxProjects) {
+        if (typeof limits.maxProjects === 'number' && existingProjects.length >= limits.maxProjects) {
           return c.json(
             {
               error: `Plan limit reached: The ${plan} plan allows up to ${limits.maxProjects} project(s). Upgrade to Pro to add more projects.`,
