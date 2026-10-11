@@ -55,6 +55,9 @@ export const orgs = pgTable('orgs', {
   slug: text('slug').notNull().unique(),
   plan: text('plan').default('free').notNull(),
   stripeCustomerId: text('stripe_customer_id').unique(),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  subscriptionStatus: text('subscription_status').default('none').notNull(),
+  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

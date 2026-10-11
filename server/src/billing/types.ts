@@ -43,7 +43,9 @@ export interface CustomerPortalParams {
 export interface SubscriptionInfo {
   plan: PlanType;
   status: 'active' | 'past_due' | 'canceled' | 'none';
-  currentPeriodEnd?: Date;
+  currentPeriodEnd?: Date | null;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
 }
 
 export interface WebhookResult {
