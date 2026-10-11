@@ -40,7 +40,7 @@
 - [x] 7. **XSS escaping** — add `escapeHtml` helper, apply to every API/user-controlled value interpolated into `innerHTML` in `dashboard.ts`; add a test with XSS payload and `std::vector<int>`.
 
 ### P1 — Finish Payments
-- [ ] 8. **Stripe Checkout** — add `line_items` with price IDs from env, create/store `stripe_customer_id` and subscription ID on orgs (new migration), put `org_id` in `subscription_data[metadata]`, handle `customer.subscription.updated/deleted` and `invoice.payment_failed`, make portal use stored customer, make `getSubscription` read real state; validate success/cancel/return URLs against `APP_URL`.
+- [x] 8. **Stripe Checkout** — add `line_items` with price IDs from env, create/store `stripe_customer_id` and subscription ID on orgs (new migration), put `org_id` in `subscription_data[metadata]`, handle `customer.subscription.updated/deleted` and `invoice.payment_failed`, make portal use stored customer, make `getSubscription` read real state; validate success/cancel/return URLs against `APP_URL`.
 - [ ] 9. **Frontend billing UI** — Upgrade buttons on pricing section, Billing page in dashboard (current plan, usage, Upgrade, Manage subscription).
 - [x] 10. **Enforce plan limits server-side** — alerts only on paid plans, private repos on paid plans, history retention per plan; return `null` limits as the string `"unlimited"` instead of `Infinity`.
 - [ ] 11. **Payment abstraction** — abstract billing behind existing interface; implement Razorpay or Lemon Squeezy if Stripe unavailable (user choice).
