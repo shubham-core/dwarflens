@@ -7,23 +7,44 @@ import { env } from '../env.js';
 export class StripeBillingProvider implements BillingProvider {
   private secretKey: string;
 
-  constructor(secretKey: string = process.env.STRIPE_SECRET_KEY || '') {
+  constructor(secretKey: string = env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY || '') {
     this.secretKey = secretKey;
   }
 
   async createCheckoutSession(params: CheckoutSessionParams): Promise<{ url: string; sessionId: string }> {
     const { orgId, plan, successUrl, cancelUrl } = params;
 
+    const [org] = await db
+      .select({ stripeCustomerId: orgs.stripeCustomerId })
+      .from(orgs)
+      .where(eq(orgs.id, orgId))
+      .limit(1);
+
     if (this.secretKey) {
       // In production with Stripe API key
-      const body = new URLSearchParams({
-        'client_reference_id': orgId,
+      const priceId = plan === 'team' ? env.STRIPE_PRICE_TEAM : env.STRIPE_PRICE_PRO;
+
+      const bodyParams: Record<string, string> = {
+        client_reference_id: orgId,
         'metadata[org_id]': orgId,
         'metadata[plan]': plan,
-        'mode': 'subscription',
-        'success_url': successUrl,
-        'cancel_url': cancelUrl,
-      });
+        'subscription_data[metadata][org_id]': orgId,
+        'subscription_data[metadata][plan]': plan,
+        mode: 'subscription',
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      };
+
+      if (priceId) {
+        bodyParams['line_items[0][price]'] = priceId;
+        bodyParams['line_items[0][quantity]'] = '1';
+      }
+
+      if (org?.stripeCustomerId) {
+        bodyParams['customer'] = org.stripeCustomerId;
+      }
+
+      const body = new URLSearchParams(bodyParams);
 
       const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
         method: 'POST',
@@ -55,7 +76,17 @@ export class StripeBillingProvider implements BillingProvider {
   async createCustomerPortalSession(params: CustomerPortalParams): Promise<{ url: string }> {
     const { orgId, returnUrl } = params;
 
+    const [org] = await db
+      .select({ stripeCustomerId: orgs.stripeCustomerId })
+      .from(orgs)
+      .where(eq(orgs.id, orgId))
+      .limit(1);
+
     if (this.secretKey) {
+      if (!org?.stripeCustomerId) {
+        throw new Error('Cannot open customer portal: No Stripe customer ID found for this organization. Upgrade first.');
+      }
+
       const res = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
         method: 'POST',
         headers: {
@@ -63,6 +94,7 @@ export class StripeBillingProvider implements BillingProvider {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
+          customer: org.stripeCustomerId,
           return_url: returnUrl,
         }).toString(),
       });
@@ -76,22 +108,43 @@ export class StripeBillingProvider implements BillingProvider {
       return { url: session.url };
     }
 
+    const customer = org?.stripeCustomerId || orgId;
     return {
-      url: `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}portal_session=mock_${orgId}`,
+      url: `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}portal_session=mock_${customer}`,
     };
   }
 
   async getSubscription(orgId: string): Promise<SubscriptionInfo> {
     const [org] = await db
-      .select({ plan: orgs.plan })
+      .select({
+        plan: orgs.plan,
+        subscriptionStatus: orgs.subscriptionStatus,
+        currentPeriodEnd: orgs.currentPeriodEnd,
+        stripeCustomerId: orgs.stripeCustomerId,
+        stripeSubscriptionId: orgs.stripeSubscriptionId,
+      })
       .from(orgs)
       .where(eq(orgs.id, orgId))
       .limit(1);
 
-    const plan = (org?.plan || 'free') as PlanType;
+    if (!org) {
+      return {
+        plan: 'free',
+        status: 'none',
+      };
+    }
+
+    const plan = (org.plan || 'free') as PlanType;
+    const status = (org.subscriptionStatus && org.subscriptionStatus !== 'none'
+      ? org.subscriptionStatus
+      : 'active') as SubscriptionInfo['status'];
+
     return {
       plan,
-      status: 'active',
+      status,
+      currentPeriodEnd: org.currentPeriodEnd,
+      stripeCustomerId: org.stripeCustomerId,
+      stripeSubscriptionId: org.stripeSubscriptionId,
     };
   }
 
@@ -107,31 +160,36 @@ export class StripeBillingProvider implements BillingProvider {
     let orgId: string | undefined;
     let plan: PlanType | undefined;
 
-    if (event === 'checkout.session.completed') {
-      const session = data.data?.object || data.session || {};
-      const customerId = session.customer ? String(session.customer) : undefined;
-      const clientRefOrgId = session.client_reference_id || session.metadata?.org_id;
-      plan = (session.metadata?.plan || 'pro') as PlanType;
+    const isUuid = (val?: string): val is string => !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
-      const isUuid = (val?: string): val is string => !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-
-      let targetOrg: { id: string } | undefined;
+    async function findOrg(customerId?: string, metaOrgId?: string): Promise<{ id: string } | undefined> {
       if (customerId) {
         const [foundByCustomer] = await db
           .select({ id: orgs.id })
           .from(orgs)
           .where(eq(orgs.stripeCustomerId, customerId))
           .limit(1);
-        targetOrg = foundByCustomer;
+        if (foundByCustomer) return foundByCustomer;
       }
-      if (!targetOrg && isUuid(clientRefOrgId)) {
+      if (isUuid(metaOrgId)) {
         const [foundById] = await db
           .select({ id: orgs.id })
           .from(orgs)
-          .where(eq(orgs.id, clientRefOrgId))
+          .where(eq(orgs.id, metaOrgId))
           .limit(1);
-        targetOrg = foundById;
+        if (foundById) return foundById;
       }
+      return undefined;
+    }
+
+    if (event === 'checkout.session.completed') {
+      const session = data.data?.object || data.session || {};
+      const customerId = session.customer ? String(session.customer) : undefined;
+      const subscriptionId = session.subscription ? String(session.subscription) : undefined;
+      const clientRefOrgId = session.client_reference_id || session.metadata?.org_id;
+      plan = (session.metadata?.plan || 'pro') as PlanType;
+
+      const targetOrg = await findOrg(customerId, clientRefOrgId);
 
       if (targetOrg && plan) {
         orgId = targetOrg.id;
@@ -139,39 +197,68 @@ export class StripeBillingProvider implements BillingProvider {
           .update(orgs)
           .set({
             plan,
+            subscriptionStatus: 'active',
             ...(customerId ? { stripeCustomerId: customerId } : {}),
+            ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {}),
             updatedAt: new Date(),
           })
           .where(eq(orgs.id, targetOrg.id));
       }
+    } else if (event === 'customer.subscription.updated') {
+      const subscription = data.data?.object || data.subscription || {};
+      const customerId = subscription.customer ? String(subscription.customer) : undefined;
+      const subscriptionId = subscription.id ? String(subscription.id) : undefined;
+      const status = subscription.status ? String(subscription.status) : 'active';
+      const currentPeriodEndUnix = subscription.current_period_end ? Number(subscription.current_period_end) : undefined;
+      const currentPeriodEndDate = currentPeriodEndUnix ? new Date(currentPeriodEndUnix * 1000) : undefined;
+      plan = subscription.metadata?.plan as PlanType | undefined;
+
+      const targetOrg = await findOrg(customerId, subscription.metadata?.org_id);
+
+      if (targetOrg) {
+        orgId = targetOrg.id;
+        const updateData: Record<string, any> = {
+          subscriptionStatus: status,
+          updatedAt: new Date(),
+        };
+        if (subscriptionId) updateData.stripeSubscriptionId = subscriptionId;
+        if (currentPeriodEndDate) updateData.currentPeriodEnd = currentPeriodEndDate;
+        if (plan) updateData.plan = plan;
+
+        await db.update(orgs).set(updateData).where(eq(orgs.id, targetOrg.id));
+      }
     } else if (event === 'customer.subscription.deleted') {
-      const isUuid = (val?: string): val is string => !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
       const subscription = data.data?.object || data.subscription || {};
       const customerId = subscription.customer ? String(subscription.customer) : undefined;
 
-      let targetOrg: { id: string } | undefined;
-      if (customerId) {
-        const [foundByCustomer] = await db
-          .select({ id: orgs.id })
-          .from(orgs)
-          .where(eq(orgs.stripeCustomerId, customerId))
-          .limit(1);
-        targetOrg = foundByCustomer;
-      }
-      if (!targetOrg && isUuid(subscription.metadata?.org_id)) {
-        const [foundById] = await db
-          .select({ id: orgs.id })
-          .from(orgs)
-          .where(eq(orgs.id, subscription.metadata.org_id))
-          .limit(1);
-        targetOrg = foundById;
-      }
+      const targetOrg = await findOrg(customerId, subscription.metadata?.org_id);
 
       if (targetOrg) {
         orgId = targetOrg.id;
         await db
           .update(orgs)
-          .set({ plan: 'free', updatedAt: new Date() })
+          .set({
+            plan: 'free',
+            subscriptionStatus: 'canceled',
+            stripeSubscriptionId: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(orgs.id, targetOrg.id));
+      }
+    } else if (event === 'invoice.payment_failed') {
+      const invoice = data.data?.object || data.invoice || {};
+      const customerId = invoice.customer ? String(invoice.customer) : undefined;
+
+      const targetOrg = await findOrg(customerId, invoice.metadata?.org_id);
+
+      if (targetOrg) {
+        orgId = targetOrg.id;
+        await db
+          .update(orgs)
+          .set({
+            subscriptionStatus: 'past_due',
+            updatedAt: new Date(),
+          })
           .where(eq(orgs.id, targetOrg.id));
       }
     }

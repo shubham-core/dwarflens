@@ -60,6 +60,30 @@ billingRouter.get('/orgs/:orgId/billing', requireAuth, resolveOrg('viewer'), asy
   });
 });
 
+function validateRedirectUrl(urlStr: string | undefined, defaultHash: string): string {
+  if (!urlStr) {
+    const base = env.APP_URL.endsWith('/') ? env.APP_URL : `${env.APP_URL}/`;
+    return `${base}${defaultHash}`;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(urlStr);
+  } catch {
+    throw new Error('Invalid URL format for redirect');
+  }
+
+  const appUrl = new URL(env.APP_URL);
+  const isAllowedAppOrigin = parsed.origin === appUrl.origin;
+  const isDevLocalhost = env.NODE_ENV !== 'production' && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1');
+
+  if (!isAllowedAppOrigin && !isDevLocalhost) {
+    throw new Error(`Forbidden redirect URL: origin ${parsed.origin} is not allowed by APP_URL allowlist`);
+  }
+
+  return urlStr;
+}
+
 // ---------------------------------------------------------------------------
 // 2. Checkout Session (Owner role only)
 // ---------------------------------------------------------------------------
@@ -72,21 +96,31 @@ billingRouter.post('/orgs/:orgId/billing/checkout', requireAuth, resolveOrg('own
     return c.json({ error: 'Invalid plan. Allowed plans are pro or team' }, 400);
   }
 
-  const defaultSuccess = success_url || `http://localhost:5173/#projects?billing=success`;
-  const defaultCancel = cancel_url || `http://localhost:5173/#projects?billing=canceled`;
+  let validSuccess: string;
+  let validCancel: string;
+  try {
+    validSuccess = validateRedirectUrl(success_url, '#projects?billing=success');
+    validCancel = validateRedirectUrl(cancel_url, '#projects?billing=canceled');
+  } catch (err: any) {
+    return c.json({ error: err.message }, 400);
+  }
 
   const provider = getBillingProvider();
-  const session = await provider.createCheckoutSession({
-    orgId,
-    plan,
-    successUrl: defaultSuccess,
-    cancelUrl: defaultCancel,
-  });
+  try {
+    const session = await provider.createCheckoutSession({
+      orgId,
+      plan,
+      successUrl: validSuccess,
+      cancelUrl: validCancel,
+    });
 
-  return c.json({
-    checkoutUrl: session.url,
-    sessionId: session.sessionId,
-  });
+    return c.json({
+      checkoutUrl: session.url,
+      sessionId: session.sessionId,
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message || 'Failed to create checkout session' }, 400);
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -97,17 +131,26 @@ billingRouter.post('/orgs/:orgId/billing/portal', requireAuth, resolveOrg('owner
   const body = await c.req.json().catch(() => ({}));
   const { return_url } = body;
 
-  const defaultReturn = return_url || `http://localhost:5173/#projects`;
+  let validReturn: string;
+  try {
+    validReturn = validateRedirectUrl(return_url, '#projects');
+  } catch (err: any) {
+    return c.json({ error: err.message }, 400);
+  }
 
   const provider = getBillingProvider();
-  const portal = await provider.createCustomerPortalSession({
-    orgId,
-    returnUrl: defaultReturn,
-  });
+  try {
+    const portal = await provider.createCustomerPortalSession({
+      orgId,
+      returnUrl: validReturn,
+    });
 
-  return c.json({
-    portalUrl: portal.url,
-  });
+    return c.json({
+      portalUrl: portal.url,
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message || 'Failed to create customer portal session' }, 400);
+  }
 });
 
 // ---------------------------------------------------------------------------
