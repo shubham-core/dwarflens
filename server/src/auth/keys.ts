@@ -18,6 +18,7 @@ export async function createApiKey(params: {
   orgId: string;
   projectId?: string;
   name: string;
+  scopes?: string[];
 }): Promise<{ apiKey: typeof apiKeys.$inferSelect; rawKey: string }> {
   const { rawKey, prefix } = generateRawKey();
   const keyHash = hashApiKey(rawKey);
@@ -28,6 +29,7 @@ export async function createApiKey(params: {
       orgId: params.orgId,
       projectId: params.projectId,
       name: params.name,
+      scopes: params.scopes || ['ingest:write'],
       keyHash,
       prefix,
     })
@@ -41,6 +43,7 @@ export async function verifyApiKey(rawKey: string): Promise<{
   orgId: string;
   projectId: string | null;
   name: string;
+  scopes: string[];
 } | null> {
   if (!rawKey.startsWith('dl_live_')) {
     return null;
@@ -53,6 +56,7 @@ export async function verifyApiKey(rawKey: string): Promise<{
       orgId: apiKeys.orgId,
       projectId: apiKeys.projectId,
       name: apiKeys.name,
+      scopes: apiKeys.scopes,
     })
     .from(apiKeys)
     .where(and(eq(apiKeys.keyHash, keyHash), isNull(apiKeys.revokedAt)))

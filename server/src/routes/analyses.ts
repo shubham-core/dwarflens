@@ -22,6 +22,17 @@ analysesRouter.post(
   requireAuth,
   rateLimiter(100),
   async (c) => {
+    const apiKey = c.get('apiKey');
+    if (apiKey) {
+      if (!apiKey.scopes || !apiKey.scopes.includes('ingest:write')) {
+        return c.json({ error: 'Forbidden: API key lacks ingest:write scope' }, 403);
+      }
+      const queryProjectId = c.req.query('projectId');
+      if (apiKey.projectId && queryProjectId && apiKey.projectId !== queryProjectId) {
+        return c.json({ error: 'Forbidden: API key is scoped to a different project' }, 403);
+      }
+    }
+
     // Check Content-Length header first
     const contentLength = Number(c.req.header('content-length') || 0);
     if (contentLength > MAX_PAYLOAD_BYTES) {
@@ -53,7 +64,6 @@ analysesRouter.post(
     }
 
     const user = c.get('user');
-    const apiKey = c.get('apiKey');
 
     // Resolve Org ID
     let orgId = apiKey?.orgId;
@@ -111,6 +121,10 @@ analysesRouter.post(
 
       // Auto-create project if it doesn't exist yet for this repo
       if (!project) {
+        if (apiKey?.projectId) {
+          return c.json({ error: 'Forbidden: API key is scoped to a different project' }, 403);
+        }
+
         // Enforce plan limit before creating project
         const [org] = await db
           .select({ plan: orgs.plan })
@@ -156,7 +170,7 @@ analysesRouter.post(
 
     // If API key is scoped to a specific project, verify match
     if (apiKey?.projectId && apiKey.projectId !== project.id) {
-      return c.json({ error: 'Forbidden: API key is not authorized for this project' }, 403);
+      return c.json({ error: 'Forbidden: API key is scoped to a different project' }, 403);
     }
 
     const commitSha = payload.metadata?.commit_sha || payload.commit_sha || 'unknown-sha';
@@ -297,8 +311,13 @@ analysesRouter.get('/projects/:id/analyses', requireAuth, async (c) => {
     return c.json({ error: 'Project not found' }, 404);
   }
 
-  if (apiKey && apiKey.orgId !== project.orgId) {
-    return c.json({ error: 'Forbidden' }, 403);
+  if (apiKey) {
+    if (apiKey.orgId !== project.orgId) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+    if (apiKey.projectId && apiKey.projectId !== project.id) {
+      return c.json({ error: 'Forbidden: API key is scoped to a different project' }, 403);
+    }
   }
 
   if (user) {
@@ -369,8 +388,13 @@ analysesRouter.get('/analyses/:id', requireAuth, async (c) => {
   }
 
   // Tenant isolation check
-  if (apiKey && apiKey.orgId !== item.orgId) {
-    return c.json({ error: 'Forbidden' }, 403);
+  if (apiKey) {
+    if (apiKey.orgId !== item.orgId) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+    if (apiKey.projectId && apiKey.projectId !== item.analysis.projectId) {
+      return c.json({ error: 'Forbidden: API key is scoped to a different project' }, 403);
+    }
   }
 
   if (user) {
@@ -413,8 +437,13 @@ analysesRouter.get('/projects/:id/diff', requireAuth, async (c) => {
   }
 
   // Tenant verification
-  if (apiKey && apiKey.orgId !== project.orgId) {
-    return c.json({ error: 'Forbidden' }, 403);
+  if (apiKey) {
+    if (apiKey.orgId !== project.orgId) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+    if (apiKey.projectId && apiKey.projectId !== project.id) {
+      return c.json({ error: 'Forbidden: API key is scoped to a different project' }, 403);
+    }
   }
 
   if (user) {

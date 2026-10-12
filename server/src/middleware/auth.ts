@@ -11,6 +11,7 @@ export interface ApiKeyContext {
   orgId: string;
   projectId: string | null;
   name: string;
+  scopes: string[];
 }
 
 export interface AuthContextVariables {
