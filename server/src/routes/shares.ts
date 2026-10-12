@@ -30,11 +30,9 @@ sharesRouter.post('/analyses/:id/share', requireAuth, async (c) => {
     return c.json({ error: 'Analysis not found' }, 404);
   }
 
-  // Must be owner or have valid API key for this org
+  // Only human owners can create share links
   if (apiKey) {
-    if (apiKey.orgId !== item.orgId) {
-      return c.json({ error: 'Forbidden' }, 403);
-    }
+    return c.json({ error: 'Forbidden: API keys cannot manage public share links' }, 403);
   } else if (user) {
     const [membership] = await db
       .select()
@@ -103,11 +101,9 @@ sharesRouter.delete('/analyses/:id/share', requireAuth, async (c) => {
     return c.json({ error: 'Analysis not found' }, 404);
   }
 
-  // Must be owner
+  // Only human owners can revoke share links
   if (apiKey) {
-    if (apiKey.orgId !== item.orgId) {
-      return c.json({ error: 'Forbidden' }, 403);
-    }
+    return c.json({ error: 'Forbidden: API keys cannot manage public share links' }, 403);
   } else if (user) {
     const [membership] = await db
       .select()
