@@ -230,3 +230,32 @@ export const shareLinksRelations = relations(shareLinks, ({ one }) => ({
     references: [analyses.id],
   }),
 }));
+
+// ---------------------------------------------------------------------------
+// Invitations (Pending invitations with tokens)
+// ---------------------------------------------------------------------------
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    orgId: uuid('org_id').references(() => orgs.id, { onDelete: 'cascade' }).notNull(),
+    email: text('email').notNull(),
+    role: text('role').default('member').notNull(),
+    token: text('token').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('invitations_token_idx').on(table.token),
+    index('invitations_org_email_idx').on(table.orgId, table.email),
+  ]
+);
+
+export const invitationsRelations = relations(invitations, ({ one }) => ({
+  org: one(orgs, {
+    fields: [invitations.orgId],
+    references: [orgs.id],
+  }),
+}));
+
