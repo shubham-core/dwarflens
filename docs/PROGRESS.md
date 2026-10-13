@@ -47,7 +47,7 @@
 
 ### P2 — Permissions and Abuse
 - [x] 12. **API key scopes** — add `ingest:write` scope by default; CI keys must NOT manage members/keys/billing/delete projects/change budgets; enforce project-scoped keys on every route.
-- [ ] 13. **Alert hardening** — allow `slack_webhook_url` only for `https://hooks.slack.com/services/*`; only send alert emails to verified org members; hide webhook URLs from viewers (return `has_slack_webhook` boolean).
+- [x] 13. **Alert hardening** — allow `slack_webhook_url` only for `https://hooks.slack.com/services/*`; only send alert emails to verified org members; hide webhook URLs from viewers (return `has_slack_webhook` boolean).
 - [ ] 14. **Pending invitations** — create invitation with token, email it, add user only after they accept while logged in with a verified email.
 - [ ] 15. **Input validation** — validate all route params as UUIDs (400 on bad input), wrap `c.req.json()` in safe parsing, add `app.onError` returning generic 500 JSON, enforce 5 MB body limit via middleware.
 - [ ] 16. **Rate limiting** — use platform trusted client IP (not raw `X-Forwarded-For`), apply to login/OAuth/share/ingest routes, document multi-instance shared store requirement.
