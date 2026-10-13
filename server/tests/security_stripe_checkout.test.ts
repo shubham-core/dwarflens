@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import crypto from 'crypto';
 import { app } from '../src/app.js';
+import { env } from '../src/env.js';
 import { db } from '../src/db/client.js';
 import { orgs } from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
@@ -9,8 +11,18 @@ describe('P1-8: Stripe Checkout & Subscription Lifecycle', () => {
   let ownerSession: string;
   const runId = Math.random().toString(36).substring(7);
   const customerId = `cus_sec_${runId}`;
+  const testSecret = 'whsec_test_secret_for_stripe_checkout';
+  let origSecret: string;
+
+  const signPayload = (payload: string) => {
+    const t = Math.floor(Date.now() / 1000);
+    const hmac = crypto.createHmac('sha256', testSecret).update(`${t}.${payload}`, 'utf8').digest('hex');
+    return `t=${t},v1=${hmac}`;
+  };
 
   beforeAll(async () => {
+    origSecret = env.STRIPE_WEBHOOK_SECRET;
+    (env as any).STRIPE_WEBHOOK_SECRET = testSecret;
     // 1. Create Owner & Org
     const ownerRes = await app.request('/api/v1/auth/dev-login', {
       method: 'POST',
@@ -67,18 +79,27 @@ describe('P1-8: Stripe Checkout & Subscription Lifecycle', () => {
     expect(evilData.error).toMatch(/url/i);
   });
 
+  afterAll(() => {
+    (env as any).STRIPE_WEBHOOK_SECRET = origSecret;
+  });
+
   it('updates subscription to past_due on invoice.payment_failed webhook', async () => {
+    const payload = JSON.stringify({
+      type: 'invoice.payment_failed',
+      data: {
+        object: {
+          customer: customerId,
+        },
+      },
+    });
+
     const webhookRes = await app.request('/api/v1/billing/webhook', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'invoice.payment_failed',
-        data: {
-          object: {
-            customer: customerId,
-          },
-        },
-      }),
+      headers: {
+        'Content-Type': 'application/json',
+        'stripe-signature': signPayload(payload),
+      },
+      body: payload,
     });
 
     expect(webhookRes.status).toBe(200);
@@ -89,23 +110,28 @@ describe('P1-8: Stripe Checkout & Subscription Lifecycle', () => {
 
   it('updates subscription to active with period end on customer.subscription.updated', async () => {
     const periodEndUnix = Math.floor(Date.now() / 1000) + 30 * 86400;
-    const webhookRes = await app.request('/api/v1/billing/webhook', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'customer.subscription.updated',
-        data: {
-          object: {
-            id: 'sub_live_12345',
-            customer: customerId,
-            status: 'active',
-            current_period_end: periodEndUnix,
-            metadata: {
-              plan: 'pro',
-            },
+    const payload = JSON.stringify({
+      type: 'customer.subscription.updated',
+      data: {
+        object: {
+          id: 'sub_live_12345',
+          customer: customerId,
+          status: 'active',
+          current_period_end: periodEndUnix,
+          metadata: {
+            plan: 'pro',
           },
         },
-      }),
+      },
+    });
+
+    const webhookRes = await app.request('/api/v1/billing/webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'stripe-signature': signPayload(payload),
+      },
+      body: payload,
     });
 
     expect(webhookRes.status).toBe(200);
@@ -127,17 +153,22 @@ describe('P1-8: Stripe Checkout & Subscription Lifecycle', () => {
   });
 
   it('downgrades to free and canceled on customer.subscription.deleted', async () => {
+    const payload = JSON.stringify({
+      type: 'customer.subscription.deleted',
+      data: {
+        object: {
+          customer: customerId,
+        },
+      },
+    });
+
     const webhookRes = await app.request('/api/v1/billing/webhook', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'customer.subscription.deleted',
-        data: {
-          object: {
-            customer: customerId,
-          },
-        },
-      }),
+      headers: {
+        'Content-Type': 'application/json',
+        'stripe-signature': signPayload(payload),
+      },
+      body: payload,
     });
 
     expect(webhookRes.status).toBe(200);

@@ -7,6 +7,8 @@ import { env } from '../env.js';
 import { AuthContextVariables, requireAuth } from '../middleware/auth.js';
 import { resolveOrg } from '../middleware/org.js';
 import { getBillingProvider } from '../billing/provider.js';
+import { LemonSqueezyBillingProvider } from '../billing/lemonSqueezy.js';
+import { RazorpayBillingProvider } from '../billing/razorpay.js';
 import { PLAN_LIMITS, PlanType } from '../billing/types.js';
 import { runRetentionCleanup } from '../billing/retention.js';
 
@@ -203,21 +205,81 @@ export function verifyStripeSignature(rawPayload: string, signatureHeader: strin
   }
 }
 
+export function verifyLemonSqueezySignature(rawPayload: string, signatureHeader: string, secret: string): void {
+  if (!signatureHeader) {
+    throw new Error('Missing x-signature header');
+  }
+  const expectedHmac = crypto.createHmac('sha256', secret).update(rawPayload, 'utf8').digest('hex');
+  const sigBuf = Buffer.from(signatureHeader, 'utf8');
+  const expectedBuf = Buffer.from(expectedHmac, 'utf8');
+  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+    throw new Error('Invalid webhook signature');
+  }
+}
+
+export function verifyRazorpaySignature(rawPayload: string, signatureHeader: string, secret: string): void {
+  if (!signatureHeader) {
+    throw new Error('Missing x-razorpay-signature header');
+  }
+  const expectedHmac = crypto.createHmac('sha256', secret).update(rawPayload, 'utf8').digest('hex');
+  const sigBuf = Buffer.from(signatureHeader, 'utf8');
+  const expectedBuf = Buffer.from(expectedHmac, 'utf8');
+  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+    throw new Error('Invalid webhook signature');
+  }
+}
+
 billingRouter.post('/billing/webhook', async (c) => {
   const payload = await c.req.text();
-  const signature = c.req.header('stripe-signature') || '';
+  const provider = getBillingProvider();
 
-  if (env.STRIPE_WEBHOOK_SECRET) {
+  // Determine provider type
+  let providerType = (process.env.BILLING_PROVIDER || env.BILLING_PROVIDER || 'stripe').toLowerCase();
+  if (provider instanceof LemonSqueezyBillingProvider) providerType = 'lemonsqueezy';
+  else if (provider instanceof RazorpayBillingProvider) providerType = 'razorpay';
+  else if (c.req.header('x-signature') && !c.req.header('stripe-signature')) providerType = 'lemonsqueezy';
+  else if (c.req.header('x-razorpay-signature') && !c.req.header('stripe-signature')) providerType = 'razorpay';
+
+  let signature = '';
+  if (providerType === 'lemonsqueezy' || providerType === 'lemon_squeezy') {
+    const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET || process.env.LEMON_SQUEEZY_WEBHOOK_SECRET || env.LEMONSQUEEZY_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error('[Billing Webhook] LEMONSQUEEZY_WEBHOOK_SECRET is not configured; rejecting webhook (fail-closed)');
+      return c.json({ error: 'Webhook secret not configured' }, 503);
+    }
+    signature = c.req.header('x-signature') || '';
     try {
-      verifyStripeSignature(payload, signature, env.STRIPE_WEBHOOK_SECRET);
+      verifyLemonSqueezySignature(payload, signature, secret);
+    } catch (err: any) {
+      return c.json({ error: err.message }, 400);
+    }
+  } else if (providerType === 'razorpay') {
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || env.RAZORPAY_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error('[Billing Webhook] RAZORPAY_WEBHOOK_SECRET is not configured; rejecting webhook (fail-closed)');
+      return c.json({ error: 'Webhook secret not configured' }, 503);
+    }
+    signature = c.req.header('x-razorpay-signature') || '';
+    try {
+      verifyRazorpaySignature(payload, signature, secret);
     } catch (err: any) {
       return c.json({ error: err.message }, 400);
     }
   } else {
-    console.warn('[Billing Webhook] STRIPE_WEBHOOK_SECRET is not set; skipping signature verification');
+    // Stripe
+    const secret = env.STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error('[Billing Webhook] STRIPE_WEBHOOK_SECRET is not configured; rejecting webhook (fail-closed)');
+      return c.json({ error: 'Webhook secret not configured' }, 503);
+    }
+    signature = c.req.header('stripe-signature') || '';
+    try {
+      verifyStripeSignature(payload, signature, secret);
+    } catch (err: any) {
+      return c.json({ error: err.message }, 400);
+    }
   }
 
-  const provider = getBillingProvider();
   try {
     const result = await provider.handleWebhook(payload, signature);
     return c.json({ received: true, result });
