@@ -88,6 +88,7 @@ authRouter.get('/github/callback', async (c) => {
             .set({
               githubId: profile.githubId,
               avatarUrl: profile.avatarUrl,
+              emailVerified: profile.emailVerified,
               updatedAt: new Date(),
             })
             .where(eq(users.id, existingEmailUser.id))
@@ -109,6 +110,7 @@ authRouter.get('/github/callback', async (c) => {
             .values({
               githubId: profile.githubId,
               email: insertEmail,
+              emailVerified: profile.emailVerified,
               name: profile.name,
               avatarUrl: profile.avatarUrl,
             })
@@ -166,6 +168,7 @@ if (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') {
         .insert(users)
         .values({
           email,
+          emailVerified: true,
           name: name || email.split('@')[0],
         })
         .returning();

@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { app } from '../src/app.js';
 import { env } from '../src/env.js';
 import { db } from '../src/db/client.js';
-import { orgs } from '../src/db/schema.js';
+import { orgs, users, orgMembers } from '../src/db/schema.js';
 
 describe('Project Budget Alerts (Email & Slack)', () => {
   let sessionOwner: string;
@@ -34,6 +34,23 @@ describe('Project Budget Alerts (Email & Slack)', () => {
 
     // Alerts require a paid plan
     await db.update(orgs).set({ plan: 'pro' }).where(eq(orgs.id, orgId));
+
+    // Register custom-alerts@example.com as verified org member so alerts can be routed to it
+    let [customUser] = await db.select().from(users).where(eq(users.email, 'custom-alerts@example.com')).limit(1);
+    if (!customUser) {
+      [customUser] = await db.insert(users).values({
+        email: 'custom-alerts@example.com',
+        emailVerified: true,
+        name: 'Custom Alerts',
+      }).returning();
+    } else {
+      await db.update(users).set({ emailVerified: true }).where(eq(users.id, customUser.id));
+    }
+    await db.insert(orgMembers).values({
+      orgId,
+      userId: customUser.id,
+      role: 'member',
+    });
 
     // 2. Create Project
     const projRes = await app.request(`/api/v1/orgs/${orgId}/projects`, {
