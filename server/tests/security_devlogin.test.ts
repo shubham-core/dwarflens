@@ -26,6 +26,12 @@ describe('P0-4: Dev Login Hardening & Production Startup Validation', () => {
       NODE_ENV: 'production',
       SESSION_SECRET: 'a-very-long-secret-key-that-is-secure-and-random-32-chars',
       DATABASE_URL: 'postgresql://prod_user:prod_pass@db.example.com:5432/dwarflens_prod',
+      APP_URL: 'https://shubham-core.github.io/dwarflens/',
+      API_URL: 'https://dwarflens.onrender.com',
+      GITHUB_CLIENT_ID: 'gh_client_123',
+      GITHUB_CLIENT_SECRET: 'gh_secret_456',
+      STRIPE_WEBHOOK_SECRET: 'whsec_789',
+      CRON_SECRET: 'cron-super-secret-key-at-least-32-characters-long!',
     });
     expect(() => validateProductionEnv(parsed)).not.toThrow();
   });

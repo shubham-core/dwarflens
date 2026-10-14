@@ -136,19 +136,28 @@ The frontend (`web/`) is a client-side Single Page Application built with Vite a
 
 ## 4. Environment Variables Reference
 
-| Variable Name | Required | Default | Description |
+In production (`NODE_ENV=production`), DwarfLens strictly enforces startup validation (`validateProductionEnv`). The server will refuse to start if any required environment variable is missing, using default values, or pointing to localhost.
+
+| Variable Name | Required in Prod | Default / Example | Description |
 | :--- | :---: | :---: | :--- |
-| `DATABASE_URL` | **Yes** | — | PostgreSQL connection URI (`postgres://user:pass@host:5432/db?sslmode=require`). |
-| `SESSION_SECRET` | **Yes** | — | 32+ character cryptographic secret for signing HTTP session cookies. |
+| `NODE_ENV` | Yes | `production` | Deployment environment (`production`, `development`, `test`). Defaults to `production` when unset. |
+| `DATABASE_URL` | **Yes** | — | PostgreSQL connection URI (`postgresql://user:pass@host:5432/db?sslmode=require`). Cannot be localhost in production. |
+| `DATABASE_URL_UNPOOLED` | No | — | Optional unpooled connection string for direct migration scripts. |
+| `SESSION_SECRET` | **Yes** | — | 32+ character cryptographic secret for signing HTTP session cookies. Cannot use dev default. |
 | `PORT` | No | `3000` | Port on which the API server listens. |
-| `NODE_ENV` | No | `development` | Set to `production` in staging/production deployments. |
 | `GITHUB_CLIENT_ID` | **Yes** | — | GitHub OAuth application client ID for web dashboard login. |
 | `GITHUB_CLIENT_SECRET` | **Yes** | — | GitHub OAuth application client secret. |
-| `APP_URL` | No | `http://localhost:5173` | Public URL of the web dashboard (used for OAuth redirects and CORS). |
-| `DEV_LOGIN_ENABLED` | No | `false` | Enables `/api/v1/auth/dev-login` for local development. **Must be false in production**. |
-| `STRIPE_SECRET_KEY` | Optional | — | Stripe API secret key (`sk_live_...`) to activate real billing checkouts. |
-| `STRIPE_WEBHOOK_SECRET` | Optional | — | Stripe webhook signing secret (`whsec_...`) for subscription events. |
-| `RESEND_API_KEY` | Optional | — | Resend API key (`re_...`) for dispatching CI budget alert emails. |
+| `APP_URL` | **Yes** | `https://shubham-core.github.io/dwarflens/` | Public URL of the web dashboard (used for CORS allowlist and redirect validation). Cannot be localhost in production. |
+| `API_URL` | **Yes** | `https://dwarflens.onrender.com` | Public base URL of the API server (used for OAuth callback redirection). Cannot be localhost in production. |
+| `CRON_SECRET` | **Yes** | — | 32+ character secret for authenticating scheduled maintenance jobs (`POST /api/v1/billing/retention`). |
+| `BILLING_PROVIDER` | No | `stripe` | Active billing provider: `stripe`, `lemonsqueezy`, or `razorpay`. |
+| `STRIPE_SECRET_KEY` | Optional | `sk_live_...` | Stripe API secret key. Required for live Stripe checkout sessions. |
+| `STRIPE_WEBHOOK_SECRET` | **Yes\*** | `whsec_...` | Stripe webhook HMAC signing secret. **Required if `BILLING_PROVIDER=stripe`**. |
+| `STRIPE_PRICE_PRO` | Optional | `price_...` | Stripe Price ID for Pro plan checkout. |
+| `STRIPE_PRICE_TEAM` | Optional | `price_...` | Stripe Price ID for Team plan checkout. |
+| `LEMONSQUEEZY_WEBHOOK_SECRET` | **Yes\*** | — | Webhook HMAC signing secret. **Required if `BILLING_PROVIDER=lemonsqueezy`**. |
+| `RAZORPAY_WEBHOOK_SECRET` | **Yes\*** | — | Webhook HMAC signing secret. **Required if `BILLING_PROVIDER=razorpay`**. |
+| `RESEND_API_KEY` | Optional | `re_...` | Resend API key for dispatching CI budget alert emails. |
 
 ---
 
