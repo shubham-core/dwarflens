@@ -44,11 +44,37 @@ export type Env = z.infer<typeof envSchema>;
 
 export function validateProductionEnv(e: Env): void {
   if (e.NODE_ENV === 'production') {
-    if (e.SESSION_SECRET === 'dwarflens-dev-session-secret-at-least-32-chars-long!') {
-      throw new Error('Refusing to start: SESSION_SECRET is using the insecure default value');
+    if (e.SESSION_SECRET === 'dwarflens-dev-session-secret-at-least-32-chars-long!' || e.SESSION_SECRET.length < 32) {
+      throw new Error('Refusing to start: SESSION_SECRET is using the insecure default value or is shorter than 32 characters');
     }
-    if (e.DATABASE_URL === 'postgresql://postgres:postgres@localhost:5432/dwarflens') {
-      throw new Error('Refusing to start: DATABASE_URL is using the localhost default');
+    if (e.DATABASE_URL === 'postgresql://postgres:postgres@localhost:5432/dwarflens' || e.DATABASE_URL.includes('localhost') || e.DATABASE_URL.includes('127.0.0.1')) {
+      throw new Error('Refusing to start: DATABASE_URL is using the localhost default or contains localhost/127.0.0.1');
+    }
+    if (e.APP_URL.includes('localhost') || e.APP_URL.includes('127.0.0.1')) {
+      throw new Error('Refusing to start: APP_URL cannot point to localhost/127.0.0.1 in production');
+    }
+    if (e.API_URL.includes('localhost') || e.API_URL.includes('127.0.0.1')) {
+      throw new Error('Refusing to start: API_URL cannot point to localhost/127.0.0.1 in production');
+    }
+    if (!e.GITHUB_CLIENT_ID || !e.GITHUB_CLIENT_SECRET) {
+      throw new Error('Refusing to start: GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are required in production');
+    }
+    const provider = (e.BILLING_PROVIDER || process.env.BILLING_PROVIDER || 'stripe').toLowerCase();
+    if (provider === 'lemonsqueezy' || provider === 'lemon_squeezy') {
+      if (!e.LEMONSQUEEZY_WEBHOOK_SECRET) {
+        throw new Error('Refusing to start: LEMONSQUEEZY_WEBHOOK_SECRET is required when Lemon Squeezy billing provider is enabled');
+      }
+    } else if (provider === 'razorpay') {
+      if (!e.RAZORPAY_WEBHOOK_SECRET) {
+        throw new Error('Refusing to start: RAZORPAY_WEBHOOK_SECRET is required when Razorpay billing provider is enabled');
+      }
+    } else {
+      if (!e.STRIPE_WEBHOOK_SECRET) {
+        throw new Error('Refusing to start: STRIPE_WEBHOOK_SECRET is required when Stripe billing provider is enabled');
+      }
+    }
+    if (!e.CRON_SECRET || e.CRON_SECRET.length < 32) {
+      throw new Error('Refusing to start: CRON_SECRET is required and must be at least 32 characters long in production');
     }
   }
 }
