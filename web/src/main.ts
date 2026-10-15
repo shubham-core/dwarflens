@@ -365,6 +365,24 @@ function renderSectionsTable(analysis: BinaryAnalysis): void {
   }
 }
 
+export function renderSymbolRowHtml(sym: { name: string; raw_name?: string; template_group?: string; section: string; type: string; compile_unit?: string; size: number }, barWidth = 50): string {
+  return `
+    <td>
+      <div class="mono" style="font-weight: 600; color: #fff;" title="${escapeHtml(sym.raw_name || sym.name)}">${escapeHtml(sym.name)}</div>
+      ${sym.template_group ? `<div style="font-size: 0.72rem; color: var(--accent);">Template: ${escapeHtml(sym.template_group)}</div>` : ''}
+    </td>
+    <td><span class="badge badge-code">${escapeHtml(sym.section)}</span></td>
+    <td><span class="badge" style="background: var(--bg-card); color: var(--text-secondary);">${escapeHtml(sym.type)}</span></td>
+    <td style="font-size: 0.78rem; color: var(--text-secondary); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(sym.compile_unit || '—')}</td>
+    <td class="mono" style="white-space: nowrap;">
+      <div>${formatBytes(sym.size)}</div>
+      <div style="background: var(--bg-tertiary); height: 4px; width: 80px; border-radius: 2px; margin-top: 3px; overflow: hidden;">
+        <div style="background: var(--accent); height: 100%; width: ${barWidth}%;"></div>
+      </div>
+    </td>
+  `;
+}
+
 // Render Symbols Table with Filtering & Sorting
 function renderSymbolsTable(analysis: BinaryAnalysis): void {
   const tbody = document.getElementById('symbols-tbody');
@@ -408,21 +426,7 @@ function renderSymbolsTable(analysis: BinaryAnalysis): void {
     const tr = document.createElement('tr');
     const barWidth = Math.max(4, Math.round((sym.size / maxSize) * 100));
 
-    tr.innerHTML = `
-      <td>
-        <div class="mono" style="font-weight: 600; color: #fff;" title="${escapeHtml(sym.raw_name)}">${escapeHtml(sym.name)}</div>
-        ${sym.template_group ? `<div style="font-size: 0.72rem; color: var(--accent);">Template: ${escapeHtml(sym.template_group)}</div>` : ''}
-      </td>
-      <td><span class="badge badge-code">${escapeHtml(sym.section)}</span></td>
-      <td><span class="badge" style="background: var(--bg-card); color: var(--text-secondary);">${escapeHtml(sym.type)}</span></td>
-      <td style="font-size: 0.78rem; color: var(--text-secondary); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(sym.compile_unit || '—')}</td>
-      <td class="mono" style="white-space: nowrap;">
-        <div>${formatBytes(sym.size)}</div>
-        <div style="background: var(--bg-tertiary); height: 4px; width: 80px; border-radius: 2px; margin-top: 3px; overflow: hidden;">
-          <div style="background: var(--accent); height: 100%; width: ${barWidth}%;"></div>
-        </div>
-      </td>
-    `;
+    tr.innerHTML = renderSymbolRowHtml(sym, barWidth);
     tbody.appendChild(tr);
   }
 }
@@ -718,7 +722,7 @@ function attachTooltip(el: HTMLElement, content: string): void {
   if (!tooltip) return;
 
   el.addEventListener('mouseenter', (e) => {
-    tooltip.innerHTML = content.replace(/\n/g, '<br/>');
+    tooltip.innerHTML = escapeHtml(content).replace(/\n/g, '<br/>');
     tooltip.style.display = 'block';
     tooltip.style.left = `${(e as MouseEvent).clientX + 14}px`;
     tooltip.style.top = `${(e as MouseEvent).clientY + 14}px`;
@@ -1142,8 +1146,10 @@ async function init(): Promise<void> {
 }
 
 // Start application when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 }
