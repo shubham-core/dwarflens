@@ -4,6 +4,39 @@ import { renderStoredAnalysis, resetResultsToTryView } from './main.js';
 import { renderLandingPage } from './landing.js';
 import { escapeHtml } from './escape.js';
 
+export function renderProjectCardHtml(p: { id: string; name: string; repo: string; createdAt: string | Date }): string {
+  return `
+    <a href="#projects/${escapeHtml(p.id)}" style="text-decoration: none; color: inherit;">
+      <div style="padding: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
+        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem;">${escapeHtml(p.name)}</div>
+        <div style="font-size: 0.85rem; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 0.75rem;">${escapeHtml(p.repo)}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary);">
+          <span>Created ${new Date(p.createdAt).toLocaleDateString()}</span>
+          <span style="color: var(--accent);">View details &rarr;</span>
+        </div>
+      </div>
+    </a>
+  `;
+}
+
+export function renderTopSymbolDeltaHtml(sym: { name: string; status: string; base_size: number; head_size: number; delta: number }): string {
+  return `
+    <tr style="border-bottom: 1px solid var(--border-color);">
+      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600;">${escapeHtml(sym.name)}</td>
+      <td style="padding: 0.75rem 1rem;">
+        <span class="badge" style="background: ${sym.status === 'added' ? 'var(--danger-bg)' : sym.status === 'removed' ? 'var(--success-bg)' : 'var(--bg-tertiary)'}; color: ${sym.status === 'added' ? 'var(--danger)' : sym.status === 'removed' ? 'var(--success)' : 'var(--text-secondary)'};">
+          ${escapeHtml(sym.status)}
+        </span>
+      </td>
+      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono);">${sym.base_size} B</td>
+      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono);">${sym.head_size} B</td>
+      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600; color: ${sym.delta > 0 ? 'var(--danger)' : 'var(--success)'};">
+        ${sym.delta >= 0 ? '+' : ''}${sym.delta} B
+      </td>
+    </tr>
+  `;
+}
+
 export class DashboardApp {
   user: User | null = null;
   orgs: OrgMembership[] = [];
@@ -350,18 +383,7 @@ export class DashboardApp {
             </div>
           ` : `
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
-              ${projects.map((p) => `
-                <a href="#projects/${escapeHtml(p.id)}" style="text-decoration: none; color: inherit;">
-                  <div style="padding: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
-                    <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem;">${escapeHtml(p.name)}</div>
-                    <div style="font-size: 0.85rem; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 0.75rem;">${escapeHtml(p.repo)}</div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary);">
-                      <span>Created ${new Date(p.createdAt).toLocaleDateString()}</span>
-                      <span style="color: var(--accent);">View details &rarr;</span>
-                    </div>
-                  </div>
-                </a>
-              `).join('')}
+              ${projects.map((p) => renderProjectCardHtml(p)).join('')}
             </div>
           `}
         </div>
@@ -863,21 +885,7 @@ export class DashboardApp {
                   </tr>
                 </thead>
                 <tbody>
-                  ${diff.top_symbol_deltas.map((sym) => `
-                    <tr style="border-bottom: 1px solid var(--border-color);">
-                      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600;">${escapeHtml(sym.name)}</td>
-                      <td style="padding: 0.75rem 1rem;">
-                        <span class="badge" style="background: ${sym.status === 'added' ? 'var(--danger-bg)' : sym.status === 'removed' ? 'var(--success-bg)' : 'var(--bg-tertiary)'}; color: ${sym.status === 'added' ? 'var(--danger)' : sym.status === 'removed' ? 'var(--success)' : 'var(--text-secondary)'};">
-                          ${escapeHtml(sym.status)}
-                        </span>
-                      </td>
-                      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono);">${sym.base_size} B</td>
-                      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono);">${sym.head_size} B</td>
-                      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600; color: ${sym.delta > 0 ? 'var(--danger)' : 'var(--success)'};">
-                        ${sym.delta >= 0 ? '+' : ''}${sym.delta} B
-                      </td>
-                    </tr>
-                  `).join('')}
+                  ${diff.top_symbol_deltas.map((sym) => renderTopSymbolDeltaHtml(sym)).join('')}
                 </tbody>
               </table>
             `}
