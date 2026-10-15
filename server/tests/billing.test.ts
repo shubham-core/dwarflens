@@ -315,11 +315,20 @@ describe('Billing, Plan Limits & Data Retention Suite', () => {
     expect(checkRecent).toBeDefined();
 
     // Trigger via HTTP retention endpoint
-    const httpRes = await app.request('/api/v1/billing/retention', {
-      method: 'POST',
-    });
-    expect(httpRes.status).toBe(200);
-    const httpData = await httpRes.json();
-    expect(httpData.status).toBe('completed');
+    const origCronSecret = env.CRON_SECRET;
+    try {
+      (env as any).CRON_SECRET = 'test_cron_secret_32_characters_long!';
+      const httpRes = await app.request('/api/v1/billing/retention', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer test_cron_secret_32_characters_long!',
+        },
+      });
+      expect(httpRes.status).toBe(200);
+      const httpData = await httpRes.json();
+      expect(httpData.status).toBe('completed');
+    } finally {
+      (env as any).CRON_SECRET = origCronSecret;
+    }
   });
 });
