@@ -49,7 +49,7 @@
 - [x] 12. **API key scopes** — add `ingest:write` scope by default; CI keys must NOT manage members/keys/billing/delete projects/change budgets; enforce project-scoped keys on every route.
 - [x] 13. **Alert hardening** — allow `slack_webhook_url` only for `https://hooks.slack.com/services/*`; only send alert emails to verified org members; hide webhook URLs from viewers (return `has_slack_webhook` boolean).
 - [x] 14. **Pending invitations** — create invitation with token, email it, add user only after they accept while logged in with a verified email.
-- [ ] 15. **Input validation** — validate all route params as UUIDs (400 on bad input), wrap `c.req.json()` in safe parsing, add `app.onError` returning generic 500 JSON, enforce 5 MB body limit via middleware.
+- [x] 15. **Input validation** — validate all route params as UUIDs (400 on bad input), wrap `c.req.json()` in safe parsing, add `app.onError` returning generic 500 JSON, enforce 5 MB body limit via middleware.
 - [ ] 16. **Rate limiting** — use platform trusted client IP (not raw `X-Forwarded-For`), apply to login/OAuth/share/ingest routes, document multi-instance shared store requirement.
 - [ ] 17. **Session hardening** — hash session IDs in DB, delete expired sessions periodically, require typed confirmation for destructive actions, don't delete orgs that still have other members.
 - [ ] 18. **Dependency audit** — upgrade drizzle-orm to patched version, run `npm audit` for server and web.
@@ -145,6 +145,10 @@
 ### P2-14: Pending Invitations Lifecycle
 - **Completed:** Built pending invitations system with SHA-256 hashed token storage (`POST /api/v1/orgs/:orgId/invites`), 7-day expiration, single-use acceptance (`POST /api/v1/invitations/accept`), verified email matching enforcement, role escalation prevention, and disabled the legacy direct member addition endpoint (`POST /api/v1/orgs/:orgId/members` returning 403). Commit: `6f3056a`.
 - **Verification:** Authored `server/tests/security_invitations.test.ts` (11 tests covering token hashing, expiry, unverified email rejection, wrong email rejection, role escalation prevention, and single use). All 30 server vitest test files (152 tests) passed, TypeScript typecheck clean, web build clean.
+
+### P2-15: Input Validation and Error Handling
+- **Completed:** Added comprehensive UUID validation middleware (`server/src/middleware/validateUuid.ts`) rejecting non-UUID route parameters and query params with 400 Bad Request; enforced global 5 MB body limit middleware via `hono/body-limit` (returning 413); added safe JSON body error handling returning 400 on malformed payloads; added generic `app.onError` returning generic 500 JSON without stack trace leaks. Commit: `4a769c6`.
+- **Verification:** Authored `server/tests/security_input_validation.test.ts` (9 tests covering invalid UUID params across routes, malformed JSON bodies, payload size limits exceeding 5 MB, and generic 500 error sanitization). All 31 server vitest test files (161 tests) passed, TypeScript typecheck clean, web build clean.
 
 
 
