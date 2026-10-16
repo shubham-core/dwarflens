@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
-import { eq, and } from 'drizzle-orm';
+import crypto from 'crypto';
+import { eq, and, isNull } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { projects, apiKeys, orgMembers, orgs, users, OrgRole } from '../db/schema.js';
+import { projects, apiKeys, orgMembers, orgs, users, invitations, OrgRole } from '../db/schema.js';
+import { env } from '../env.js';
 import { AuthContextVariables, requireAuth } from '../middleware/auth.js';
 import { resolveOrg } from '../middleware/org.js';
 import { createApiKey } from '../auth/keys.js';
@@ -484,76 +486,187 @@ orgRouter.get('/orgs/:orgId/members', requireAuth, resolveOrg('viewer'), async (
   return c.json({ members: membersList });
 });
 
-// Invite / Add Org Member (Owner only)
+// Direct member addition is disabled. Must use pending invitations.
 orgRouter.post('/orgs/:orgId/members', requireAuth, resolveOrg('owner'), async (c) => {
+  return c.json({
+    error: 'Direct member addition is disabled. Send an invitation via POST /api/v1/orgs/:orgId/invites instead.'
+  }, 403);
+});
+
+// ---------------------------------------------------------------------------
+// Pending Invitations Lifecycle
+// ---------------------------------------------------------------------------
+
+// Create Pending Invitation (Owner only)
+orgRouter.post('/orgs/:orgId/invites', requireAuth, resolveOrg('owner'), async (c) => {
   const orgId = c.get('orgId')!;
-  const { email, role = 'member' } = await c.req.json();
+  const body = await c.req.json().catch(() => ({}));
+  const { email, role = 'member' } = body;
 
   if (!email || typeof email !== 'string') {
     return c.json({ error: 'Valid email is required' }, 400);
   }
 
-  const validRoles: OrgRole[] = ['owner', 'member', 'viewer'];
+  const validRoles = ['member', 'viewer'];
   if (!validRoles.includes(role)) {
-    return c.json({ error: 'Invalid role. Must be owner, member, or viewer' }, 400);
+    return c.json({ error: 'Invalid role. Must be member or viewer' }, 400);
   }
 
   const normalizedEmail = email.toLowerCase().trim();
 
-  // Find or create user
-  let [targetUser] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, normalizedEmail))
-    .limit(1);
-
-  if (!targetUser) {
-    [targetUser] = await db
-      .insert(users)
-      .values({
-        email: normalizedEmail,
-        name: normalizedEmail.split('@')[0],
-      })
-      .returning();
-  }
-
-  // Check if member already in org
+  // Check if user is already an active member of this organization
   const [existingMember] = await db
-    .select()
+    .select({ id: orgMembers.id })
     .from(orgMembers)
-    .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, targetUser.id)))
+    .innerJoin(users, eq(orgMembers.userId, users.id))
+    .where(and(eq(orgMembers.orgId, orgId), eq(users.email, normalizedEmail)))
     .limit(1);
 
   if (existingMember) {
     return c.json({ error: 'User is already a member of this organization' }, 409);
   }
 
-  const [membership] = await db
-    .insert(orgMembers)
+  // Generate 32-byte secure random token
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+  // 7-day expiration
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const [inv] = await db
+    .insert(invitations)
     .values({
       orgId,
-      userId: targetUser.id,
+      email: normalizedEmail,
       role,
+      token: tokenHash,
+      expiresAt,
     })
     .returning();
 
-  return c.json(
-    {
-      member: {
-        id: membership.id,
-        orgId: membership.orgId,
-        userId: membership.userId,
-        role: membership.role,
-        createdAt: membership.createdAt,
-        user: {
-          id: targetUser.id,
-          email: targetUser.email,
-          name: targetUser.name,
+  // Send email via Resend if configured
+  if (env.RESEND_API_KEY) {
+    try {
+      const inviteLink = `${env.APP_URL.endsWith('/') ? env.APP_URL : env.APP_URL + '/'}#accept-invite?token=${rawToken}`;
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
         },
-      },
+        body: JSON.stringify({
+          from: 'invites@dwarflens.com',
+          to: normalizedEmail,
+          subject: 'You have been invited to DwarfLens',
+          text: `You have been invited to join an organization on DwarfLens. Click the link below to accept:\n\n${inviteLink}\n\nThis invitation will expire in 7 days.`,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to send invite email:', err);
+    }
+  }
+
+  return c.json({
+    invitation: {
+      id: inv.id,
+      orgId: inv.orgId,
+      email: inv.email,
+      role: inv.role,
+      expiresAt: inv.expiresAt,
+      token: rawToken,
     },
-    201
-  );
+  }, 201);
+});
+
+// List Pending Invitations (Viewer or above)
+orgRouter.get('/orgs/:orgId/invites', requireAuth, resolveOrg('viewer'), async (c) => {
+  const orgId = c.get('orgId')!;
+  const pending = await db
+    .select({
+      id: invitations.id,
+      orgId: invitations.orgId,
+      email: invitations.email,
+      role: invitations.role,
+      expiresAt: invitations.expiresAt,
+      createdAt: invitations.createdAt,
+    })
+    .from(invitations)
+    .where(and(eq(invitations.orgId, orgId), isNull(invitations.acceptedAt)));
+
+  return c.json({ invitations: pending });
+});
+
+// Revoke Pending Invitation (Owner only)
+orgRouter.delete('/orgs/:orgId/invites/:inviteId', requireAuth, resolveOrg('owner'), async (c) => {
+  const orgId = c.get('orgId')!;
+  const inviteId = c.req.param('inviteId');
+
+  await db
+    .delete(invitations)
+    .where(and(eq(invitations.id, inviteId), eq(invitations.orgId, orgId)));
+
+  return c.json({ status: 'revoked' });
+});
+
+// Accept Invitation (Logged-in user with matching verified email)
+orgRouter.post('/invitations/accept', requireAuth, async (c) => {
+  const currentUser = c.get('user')!;
+  const body = await c.req.json().catch(() => ({}));
+  const { token } = body;
+
+  if (!token || typeof token !== 'string') {
+    return c.json({ error: 'Invitation token is required' }, 400);
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+  const [inv] = await db
+    .select()
+    .from(invitations)
+    .where(eq(invitations.token, tokenHash))
+    .limit(1);
+
+  if (!inv) {
+    return c.json({ error: 'Invitation not found or invalid token' }, 404);
+  }
+
+  if (inv.acceptedAt) {
+    return c.json({ error: 'Invitation already accepted' }, 400);
+  }
+
+  if (new Date() > new Date(inv.expiresAt)) {
+    return c.json({ error: 'Invitation has expired' }, 400);
+  }
+
+  if (!currentUser.emailVerified) {
+    return c.json({ error: 'You must have a verified email to accept this invitation' }, 403);
+  }
+
+  if (currentUser.email.toLowerCase() !== inv.email.toLowerCase()) {
+    return c.json({ error: 'This invitation was sent to a different email address' }, 403);
+  }
+
+  // Check if user is already a member
+  const [existingMember] = await db
+    .select({ id: orgMembers.id })
+    .from(orgMembers)
+    .where(and(eq(orgMembers.orgId, inv.orgId), eq(orgMembers.userId, currentUser.id)))
+    .limit(1);
+
+  if (!existingMember) {
+    await db.insert(orgMembers).values({
+      orgId: inv.orgId,
+      userId: currentUser.id,
+      role: inv.role as OrgRole,
+    });
+  }
+
+  await db
+    .update(invitations)
+    .set({ acceptedAt: new Date() })
+    .where(eq(invitations.id, inv.id));
+
+  return c.json({ status: 'accepted', orgId: inv.orgId });
 });
 
 // Update Member Role (Owner only)
