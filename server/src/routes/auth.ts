@@ -12,11 +12,15 @@ import {
 } from '../auth/github.js';
 import { createSession, deleteSession } from '../auth/sessions.js';
 import { AuthContextVariables, requireAuth, requireUser } from '../middleware/auth.js';
+import { rateLimiter } from '../middleware/rateLimit.js';
 
 export const authRouter = new Hono<{ Variables: AuthContextVariables }>();
 
 // 1. Initiate GitHub OAuth
-authRouter.get('/github', (c) => {
+authRouter.get(
+  '/github',
+  rateLimiter({ limit: 20, windowMs: 60 * 1000, keyPrefix: 'auth-oauth' }),
+  (c) => {
   const state = crypto.randomBytes(16).toString('hex');
   const redirectUri = `${env.API_URL.replace(/\/$/, '')}/api/v1/auth/github/callback`;
 
@@ -32,7 +36,10 @@ authRouter.get('/github', (c) => {
 });
 
 // 2. GitHub OAuth Callback
-authRouter.get('/github/callback', async (c) => {
+authRouter.get(
+  '/github/callback',
+  rateLimiter({ limit: 20, windowMs: 60 * 1000, keyPrefix: 'auth-oauth' }),
+  async (c) => {
   const code = c.req.query('code');
   const queryState = c.req.query('state');
   const cookieState = getCookie(c, 'oauth_state');
@@ -151,7 +158,10 @@ authRouter.get('/github/callback', async (c) => {
 });
 
 // 3. Dev login for test suites and local development ONLY (never enabled in production)
-authRouter.post('/dev-login', async (c) => {
+authRouter.post(
+  '/dev-login',
+  rateLimiter({ limit: 10, windowMs: 60 * 1000, keyPrefix: 'auth-login' }),
+  async (c) => {
   // Only allow when NODE_ENV is explicitly 'development' or 'test'
   if (env.NODE_ENV !== 'development' && env.NODE_ENV !== 'test') {
     return c.json({ error: 'Not found' }, 404);
