@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
 import crypto from 'crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { users, orgs, orgMembers } from '../db/schema.js';
 import { env } from '../env.js';
@@ -264,6 +264,25 @@ authRouter.post('/logout', async (c) => {
 authRouter.delete('/me', requireUser, async (c) => {
   const user = c.get('user')!;
 
+  // Typed confirmation check: require user name or email confirmation for destructive action
+  let body: any = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    body = {};
+  }
+
+  const confirmName = body.confirmName || body.name || c.req.query('confirmName');
+  const isMatch = (user.name && confirmName === user.name) || confirmName === user.email;
+  if (!confirmName || !isMatch) {
+    return c.json(
+      {
+        error: `Confirmation required: please provide confirmName matching "${user.name || user.email}" to delete your account`,
+      },
+      400
+    );
+  }
+
   // Find organizations where this user is an owner
   const ownerMemberships = await db
     .select({ orgId: orgMembers.orgId })
@@ -271,14 +290,28 @@ authRouter.delete('/me', requireUser, async (c) => {
     .where(and(eq(orgMembers.userId, user.id), eq(orgMembers.role, 'owner')));
 
   for (const m of ownerMemberships) {
-    // If no other owners exist in this org, delete the entire org (cascading all projects & analyses)
-    const otherOwners = await db
-      .select({ id: orgMembers.id })
+    // Check if there are other members (of ANY role) in this organization
+    const otherMembers = await db
+      .select({ id: orgMembers.id, role: orgMembers.role })
       .from(orgMembers)
-      .where(and(eq(orgMembers.orgId, m.orgId), eq(orgMembers.role, 'owner')));
+      .where(and(eq(orgMembers.orgId, m.orgId), ne(orgMembers.userId, user.id)));
 
-    if (otherOwners.length <= 1) {
+    if (otherMembers.length === 0) {
+      // Safe to delete org: user was the sole member
       await db.delete(orgs).where(eq(orgs.id, m.orgId));
+    } else {
+      // Do NOT delete the org! Ensure at least one remaining member is an owner
+      const hasOtherOwner = otherMembers.some((mem) => mem.role === 'owner');
+      if (!hasOtherOwner) {
+        await db
+          .update(orgMembers)
+          .set({ role: 'owner' })
+          .where(eq(orgMembers.id, otherMembers[0].id));
+      }
+      // Remove current user from this org
+      await db
+        .delete(orgMembers)
+        .where(and(eq(orgMembers.orgId, m.orgId), eq(orgMembers.userId, user.id)));
     }
   }
 

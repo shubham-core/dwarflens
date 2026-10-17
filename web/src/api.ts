@@ -181,12 +181,18 @@ export const api = {
     return req(`/shared/${token}`);
   },
 
-  async deleteProject(projectId: string): Promise<{ status: string; id: string }> {
-    return req(`/projects/${projectId}`, { method: 'DELETE' });
+  async deleteProject(projectId: string, confirmName?: string): Promise<{ status: string; id: string }> {
+    return req(`/projects/${projectId}`, {
+      method: 'DELETE',
+      body: confirmName ? JSON.stringify({ confirmName }) : undefined,
+    });
   },
 
-  async deleteAccount(): Promise<{ status: string; id: string }> {
-    return req('/auth/me', { method: 'DELETE' });
+  async deleteAccount(confirmName?: string): Promise<{ status: string; id: string }> {
+    return req('/auth/me', {
+      method: 'DELETE',
+      body: confirmName ? JSON.stringify({ confirmName }) : undefined,
+    });
   },
 
   async getBilling(orgId: string): Promise<{

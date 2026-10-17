@@ -96,10 +96,15 @@ export class DashboardApp {
       });
 
       document.getElementById('btn-delete-account')?.addEventListener('click', async () => {
-        const confirmed = window.confirm('Are you absolutely sure you want to permanently delete your account and personal organizations? This action cannot be undone.');
-        if (!confirmed) return;
+        const expected = this.user?.name || this.user?.email || '';
+        const typed = window.prompt(`Are you absolutely sure you want to permanently delete your account and personal organizations? This action cannot be undone.\n\nPlease type "${expected}" to confirm:`);
+        if (typed === null) return;
+        if (typed !== this.user?.name && typed !== this.user?.email) {
+          alert('Confirmation failed: typed name did not match.');
+          return;
+        }
         try {
-          await api.deleteAccount();
+          await api.deleteAccount(typed);
           alert('Account deleted successfully.');
           this.user = null;
           this.orgs = [];
@@ -633,10 +638,14 @@ export class DashboardApp {
 
       // Handle Project Deletion (Danger Zone)
       document.getElementById('btn-delete-project')?.addEventListener('click', async () => {
-        const confirmed = window.confirm(`Are you absolutely sure you want to permanently delete project "${project.name}" (${project.repo})? This will delete all associated analyses and cannot be undone.`);
-        if (!confirmed) return;
+        const typed = window.prompt(`Are you absolutely sure you want to permanently delete project "${project.name}" (${project.repo})? This will delete all associated analyses and cannot be undone.\n\nPlease type "${project.name}" to confirm:`);
+        if (typed === null) return;
+        if (typed !== project.name) {
+          alert('Confirmation failed: typed project name did not match.');
+          return;
+        }
         try {
-          await api.deleteProject(projectId);
+          await api.deleteProject(projectId, typed);
           alert('Project deleted successfully.');
           window.location.hash = '#projects';
         } catch (err: any) {
