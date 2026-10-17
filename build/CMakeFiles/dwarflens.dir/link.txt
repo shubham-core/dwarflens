@@ -1,0 +1,1 @@
+/usr/bin/c++ -O2 -g -DNDEBUG CMakeFiles/dwarflens.dir/cli/main.cpp.o -o dwarflens  liblibdwarflens.a 

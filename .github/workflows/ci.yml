@@ -1,0 +1,116 @@
+name: DwarfLens CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ============================================================
+  # Build and test native
+  # ============================================================
+  build-and-test:
+    name: Build & Test (Ubuntu)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ninja-build cmake g++ 2>/dev/null || \
+          (pip install --user ninja && export PATH="$HOME/.local/bin:$PATH")
+
+      - name: Configure
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_CXX_STANDARD=20
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Run unit tests
+        run: |
+          cd build && ctest --output-on-failure -V
+
+      - name: Run CLI smoke test
+        run: |
+          ./build/dwarflens analyze ./build/dwarflens --format=table
+          ./build/dwarflens analyze ./build/dwarflens --format=json > /dev/null
+          ./build/dwarflens diff ./build/test_span_reader ./build/test_dwarf_extraction \
+            --format=markdown || true  # diff may exit non-zero if one is larger
+
+      - name: Upload CLI binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwarflens-linux-x86_64
+          path: build/dwarflens
+
+  # ============================================================
+  # Self-analysis: analyze the dwarflens binary itself
+  # ============================================================
+  self-analysis:
+    name: Self-Analysis Report
+    runs-on: ubuntu-24.04
+    needs: build-and-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: dwarflens-linux-x86_64
+          path: ./
+
+      - name: Make executable
+        run: chmod +x ./dwarflens
+
+      - name: Analyze self
+        run: |
+          ./dwarflens analyze ./dwarflens --format=markdown >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # PR binary diff (only on PRs)
+  # ============================================================
+  pr-diff:
+    name: PR Binary Size Diff
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+
+      - name: Checkout head
+        uses: actions/checkout@v4
+        with:
+          path: head
+
+      - name: Build base
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          pip install --user ninja 2>/dev/null || true
+          cmake -S base -B base_build -DCMAKE_BUILD_TYPE=Release
+          cmake --build base_build -j$(nproc)
+
+      - name: Build head
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          cmake -S head -B head_build -DCMAKE_BUILD_TYPE=Release
+          cmake --build head_build -j$(nproc)
+
+      - name: Run DwarfLens diff
+        uses: ./head/action
+        with:
+          base-binary: base_build/dwarflens
+          target-binary: head_build/dwarflens
+          format: markdown
+          max-growth-bytes: '51200'   # 50 KiB max growth
+          fail-on-padding-regression: 'true'

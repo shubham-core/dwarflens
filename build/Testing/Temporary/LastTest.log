@@ -1,0 +1,94 @@
+Start testing: Oct 17 15:01 IST
+----------------------------------------------------------
+1/2 Testing: SpanReaderRangeMap
+1/2 Test: SpanReaderRangeMap
+Command: "/home/shubham/.gemini/antigravity/scratch/dwarflens/build/test_span_reader"
+Directory: /home/shubham/.gemini/antigravity/scratch/dwarflens/build
+"SpanReaderRangeMap" start time: Oct 17 15:01 IST
+Output:
+----------------------------------------------------------
+
+=== DwarfLens Unit Tests ===
+
+--- SpanReader ---
+  ✅ PASS: read_u8_basic
+  ✅ PASS: read_u8_oob
+  ✅ PASS: read_u16_le
+  ✅ PASS: read_u32_le
+  ✅ PASS: read_u64_le
+  ✅ PASS: read_u32_oob
+  ✅ PASS: uleb128_single_byte
+  ✅ PASS: uleb128_two_bytes
+  ✅ PASS: uleb128_large_value
+  ✅ PASS: uleb128_oob
+  ✅ PASS: sleb128_positive
+  ✅ PASS: sleb128_negative
+  ✅ PASS: sleb128_negative_large
+  ✅ PASS: read_cstring_basic
+  ✅ PASS: read_cstring_unterminated
+  ✅ PASS: cstring_at_offset
+  ✅ PASS: seek_and_skip
+  ✅ PASS: sub_reader
+
+--- RangeMap ---
+  ✅ PASS: rangemap_insert_basic
+  ✅ PASS: rangemap_split_on_finer_insert
+  ✅ PASS: rangemap_fill_gaps
+  ✅ PASS: rangemap_lookup
+  ✅ PASS: rangemap_no_double_counting
+
+=== Results: 23/23 passed ===
+
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"SpanReaderRangeMap" end time: Oct 17 15:01 IST
+"SpanReaderRangeMap" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/2 Testing: DwarfExtraction
+2/2 Test: DwarfExtraction
+Command: "/home/shubham/.gemini/antigravity/scratch/dwarflens/build/test_dwarf_extraction"
+Directory: /home/shubham/.gemini/antigravity/scratch/dwarflens/build
+"DwarfExtraction" start time: Oct 17 15:01 IST
+Output:
+----------------------------------------------------------
+
+=== DwarfLens Integration Tests ===
+Fixture: /home/shubham/.gemini/antigravity/scratch/dwarflens/build/tests/fixtures/sample_target
+
+--- ELF Parsing ---
+  ✅ PASS: elf_parses_successfully
+  ✅ PASS: elf_has_text_section
+  ✅ PASS: elf_has_debug_sections
+  ✅ PASS: elf_symbols_present
+  ✅ PASS: elf_range_map_accounts_all_bytes
+
+--- DWARF Struct Extraction ---
+  ✅ PASS: dwarf_extracts_structs
+  ✅ PASS: dwarf_detects_bad_layout
+  ✅ PASS: dwarf_detects_bad_layout_member_offsets
+  ✅ PASS: dwarf_optimal_layout_saves_bytes
+  ✅ PASS: dwarf_detects_cache_line_crossing
+  ✅ PASS: dwarf_good_layout_no_padding
+  ✅ PASS: dwarf_tail_padding_detected
+  ✅ PASS: dwarf_optimal_cpp_snippet_generated
+
+--- Safety / Malformed Input ---
+  ✅ PASS: elf_rejects_truncated_header
+  ✅ PASS: elf_rejects_bad_magic
+  ✅ PASS: dwarf_handles_empty_input
+  ✅ PASS: span_reader_empty_span
+
+=== Results: 17/17 passed ===
+
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"DwarfExtraction" end time: Oct 17 15:01 IST
+"DwarfExtraction" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Oct 17 15:01 IST

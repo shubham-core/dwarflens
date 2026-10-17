@@ -1,0 +1,56 @@
+[
+{
+  "directory": "/home/shubham/.gemini/antigravity/scratch/dwarflens/build",
+  "command": "/usr/bin/c++  -I/home/shubham/.gemini/antigravity/scratch/dwarflens/core/include -O2 -g -DNDEBUG -std=c++23 -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wformat=2 -Wnull-dereference -O2 -g -o CMakeFiles/libdwarflens.dir/core/src/elf_parser.cpp.o -c /home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/elf_parser.cpp",
+  "file": "/home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/elf_parser.cpp",
+  "output": "CMakeFiles/libdwarflens.dir/core/src/elf_parser.cpp.o"
+},
+{
+  "directory": "/home/shubham/.gemini/antigravity/scratch/dwarflens/build",
+  "command": "/usr/bin/c++  -I/home/shubham/.gemini/antigravity/scratch/dwarflens/core/include -O2 -g -DNDEBUG -std=c++23 -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wformat=2 -Wnull-dereference -O2 -g -o CMakeFiles/libdwarflens.dir/core/src/wasm_parser.cpp.o -c /home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/wasm_parser.cpp",
+  "file": "/home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/wasm_parser.cpp",
+  "output": "CMakeFiles/libdwarflens.dir/core/src/wasm_parser.cpp.o"
+},
+{
+  "directory": "/home/shubham/.gemini/antigravity/scratch/dwarflens/build",
+  "command": "/usr/bin/c++  -I/home/shubham/.gemini/antigravity/scratch/dwarflens/core/include -O2 -g -DNDEBUG -std=c++23 -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wformat=2 -Wnull-dereference -O2 -g -o CMakeFiles/libdwarflens.dir/core/src/dwarf_reader.cpp.o -c /home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/dwarf_reader.cpp",
+  "file": "/home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/dwarf_reader.cpp",
+  "output": "CMakeFiles/libdwarflens.dir/core/src/dwarf_reader.cpp.o"
+},
+{
+  "directory": "/home/shubham/.gemini/antigravity/scratch/dwarflens/build",
+  "command": "/usr/bin/c++  -I/home/shubham/.gemini/antigravity/scratch/dwarflens/core/include -O2 -g -DNDEBUG -std=c++23 -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wformat=2 -Wnull-dereference -O2 -g -o CMakeFiles/libdwarflens.dir/core/src/struct_layout.cpp.o -c /home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/struct_layout.cpp",
+  "file": "/home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/struct_layout.cpp",
+  "output": "CMakeFiles/libdwarflens.dir/core/src/struct_layout.cpp.o"
+},
+{
+  "directory": "/home/shubham/.gemini/antigravity/scratch/dwarflens/build",
+  "command": "/usr/bin/c++  -I/home/shubham/.gemini/antigravity/scratch/dwarflens/core/include -O2 -g -DNDEBUG -std=c++23 -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wformat=2 -Wnull-dereference -O2 -g -o CMakeFiles/libdwarflens.dir/core/src/diff_engine.cpp.o -c /home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/diff_engine.cpp",
+  "file": "/home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/diff_engine.cpp",
+  "output": "CMakeFiles/libdwarflens.dir/core/src/diff_engine.cpp.o"
+},
+{
+  "directory": "/home/shubham/.gemini/antigravity/scratch/dwarflens/build",
+  "command": "/usr/bin/c++  -I/home/shubham/.gemini/antigravity/scratch/dwarflens/core/include -O2 -g -DNDEBUG -std=c++23 -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wformat=2 -Wnull-dereference -O2 -g -o CMakeFiles/libdwarflens.dir/core/src/json_serializer.cpp.o -c /home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/json_serializer.cpp",
+  "file": "/home/shubham/.gemini/antigravity/scratch/dwarflens/core/src/json_serializer.cpp",
+  "output": "CMakeFiles/libdwarflens.dir/core/src/json_serializer.cpp.o"
+},
+{
+  "directory": "/home/shubham/.gemini/antigravity/scratch/dwarflens/build",
+  "command": "/usr/bin/c++  -I/home/shubham/.gemini/antigravity/scratch/dwarflens/core/include -O2 -g -DNDEBUG -std=c++23 -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wformat=2 -Wnull-dereference -O2 -g -o CMakeFiles/dwarflens.dir/cli/main.cpp.o -c /home/shubham/.gemini/antigravity/scratch/dwarflens/cli/main.cpp",
+  "file": "/home/shubham/.gemini/antigravity/scratch/dwarflens/cli/main.cpp",
+  "output": "CMakeFiles/dwarflens.dir/cli/main.cpp.o"
+},
+{
+  "directory": "/home/shubham/.gemini/antigravity/scratch/dwarflens/build",
+  "command": "/usr/bin/c++  -I/home/shubham/.gemini/antigravity/scratch/dwarflens/core/include -O2 -g -DNDEBUG -std=c++23 -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wformat=2 -Wnull-dereference -O2 -g -o CMakeFiles/test_span_reader.dir/tests/unit/test_span_reader.cpp.o -c /home/shubham/.gemini/antigravity/scratch/dwarflens/tests/unit/test_span_reader.cpp",
+  "file": "/home/shubham/.gemini/antigravity/scratch/dwarflens/tests/unit/test_span_reader.cpp",
+  "output": "CMakeFiles/test_span_reader.dir/tests/unit/test_span_reader.cpp.o"
+},
+{
+  "directory": "/home/shubham/.gemini/antigravity/scratch/dwarflens/build",
+  "command": "/usr/bin/c++ -DFIXTURE_BLOAT_PATH=\\\"/home/shubham/.gemini/antigravity/scratch/dwarflens/build/tests/fixtures/sample_target_bloat\\\" -DFIXTURE_PATH=\\\"/home/shubham/.gemini/antigravity/scratch/dwarflens/build/tests/fixtures/sample_target\\\" -I/home/shubham/.gemini/antigravity/scratch/dwarflens/core/include -O2 -g -DNDEBUG -std=c++23 -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wformat=2 -Wnull-dereference -O2 -g -o CMakeFiles/test_dwarf_extraction.dir/tests/unit/test_dwarf_extraction.cpp.o -c /home/shubham/.gemini/antigravity/scratch/dwarflens/tests/unit/test_dwarf_extraction.cpp",
+  "file": "/home/shubham/.gemini/antigravity/scratch/dwarflens/tests/unit/test_dwarf_extraction.cpp",
+  "output": "CMakeFiles/test_dwarf_extraction.dir/tests/unit/test_dwarf_extraction.cpp.o"
+}
+]
