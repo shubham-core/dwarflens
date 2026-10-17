@@ -1,1 +1,0 @@
-/usr/bin/c++ -O2 -g -DNDEBUG CMakeFiles/test_span_reader.dir/tests/unit/test_span_reader.cpp.o -o test_span_reader  liblibdwarflens.a 

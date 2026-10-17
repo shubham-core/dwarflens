@@ -1,2 +1,0 @@
-/usr/bin/ar qc liblibdwarflens.a CMakeFiles/libdwarflens.dir/core/src/elf_parser.cpp.o CMakeFiles/libdwarflens.dir/core/src/wasm_parser.cpp.o CMakeFiles/libdwarflens.dir/core/src/dwarf_reader.cpp.o CMakeFiles/libdwarflens.dir/core/src/struct_layout.cpp.o CMakeFiles/libdwarflens.dir/core/src/diff_engine.cpp.o CMakeFiles/libdwarflens.dir/core/src/json_serializer.cpp.o
-/usr/bin/ranlib liblibdwarflens.a
