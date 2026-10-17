@@ -3,7 +3,7 @@
 > **Production-grade visual binary size & DWARF struct memory-layout analyzer for C, C++, Rust, and WebAssembly developers.**
 
 [![CI](https://github.com/dwarflens/dwarflens/actions/workflows/ci.yml/badge.svg)](https://github.com/dwarflens/dwarflens/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: All Rights Reserved](https://img.shields.io/badge/License-All%20Rights%20Reserved-red.svg)](LICENSE)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-purple.svg)](CMakeLists.txt)
 [![Wasm](https://img.shields.io/badge/WebAssembly-wasm32-orange.svg)](wasm/)
 
@@ -294,5 +294,4 @@ cp build-wasm/dwarflens_wasm.wasm web/public/
 ---
 
 ## 📄 License
-
-MIT License. Copyright (c) 2026 DwarfLens Contributors.
+All Rights Reserved. Copyright (c) 2026 Shubham (shubham-dataeng). Proprietary software — unauthorized copying, modification, or distribution is strictly prohibited.
