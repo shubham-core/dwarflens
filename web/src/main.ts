@@ -183,7 +183,31 @@ export async function handleFileDrop(file: File): Promise<void> {
       throw new Error('Unrecognized JSON schema. Expected DwarfLens analysis or diff report.');
     }
 
-    // Binary file (ELF or Wasm)
+    // Browser Memory Protection: Guard against crashing Wasm linear heap with massive binaries
+    const MAX_BROWSER_FILE_SIZE = 256 * 1024 * 1024; // 256 MB hard limit
+    const WARN_BROWSER_FILE_SIZE = 64 * 1024 * 1024;  // 64 MB warning
+
+    if (!file.name.endsWith('.json')) {
+      if (file.size > MAX_BROWSER_FILE_SIZE) {
+        setState('idle');
+        showAlert(
+          `🛡️ Browser Memory Protection: "${file.name}" (${formatBytes(file.size)}) exceeds the 256 MB in-browser limit.\n\n` +
+          `Parsing massive production binaries inside a browser tab can exhaust WebAssembly linear heap memory. Use the zero-copy native DwarfLens CLI:\n\n` +
+          `  ./build/dwarflens analyze --json "${file.name}" > report.json\n\n` +
+          `Then drop the resulting report.json here to view full visual analytics with 0 MB binary overhead.`,
+          true
+        );
+        return;
+      }
+      if (file.size > WARN_BROWSER_FILE_SIZE) {
+        showAlert(
+          `⚠️ Notice: Reading large binary (${formatBytes(file.size)}). In-browser WebAssembly parsing may take a few moments. If browser memory is constrained, use the native CLI.`,
+          false
+        );
+      }
+    }
+
+    // Binary file (ELF, Wasm, Mach-O, PE)
     if (loadingText) loadingText.textContent = `Reading binary file: ${file.name} (${formatBytes(file.size)})...`;
     const buffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(buffer);

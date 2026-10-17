@@ -61,6 +61,8 @@ endif()
 add_library(libdwarflens STATIC
   core/src/elf_parser.cpp
   core/src/wasm_parser.cpp
+  core/src/macho_parser.cpp
+  core/src/pe_parser.cpp
   core/src/dwarf_reader.cpp
   core/src/struct_layout.cpp
   core/src/diff_engine.cpp
@@ -173,6 +175,14 @@ if(NOT DWARFLENS_WASM)
   target_compile_options(test_wasm_parser PRIVATE ${DWARFLENS_COMPILE_OPTIONS})
   add_test(NAME WasmParser COMMAND test_wasm_parser)
 
+  # Unit test: Mach-O and PE/COFF
+  add_executable(test_macho_pe_parser
+    tests/unit/test_macho_pe_parser.cpp
+  )
+  target_link_libraries(test_macho_pe_parser PRIVATE libdwarflens)
+  target_compile_options(test_macho_pe_parser PRIVATE ${DWARFLENS_COMPILE_OPTIONS})
+  add_test(NAME MachoPeParser COMMAND test_macho_pe_parser)
+
   # Integration test: DWARF extraction
   add_executable(test_dwarf_extraction
     tests/unit/test_dwarf_extraction.cpp
@@ -186,10 +196,28 @@ if(NOT DWARFLENS_WASM)
   add_dependencies(test_dwarf_extraction test_fixtures)
   add_test(NAME DwarfExtraction COMMAND test_dwarf_extraction)
 
+  # Fuzz Resilience Test
+  option(DWARFLENS_BUILD_LIBFUZZER "Build LLVM libFuzzer harness with sanitizers" OFF)
+
+  add_executable(fuzz_parsers fuzz/fuzz_targets.cpp)
+  target_link_libraries(fuzz_parsers PRIVATE libdwarflens)
+  target_compile_options(fuzz_parsers PRIVATE ${DWARFLENS_COMPILE_OPTIONS})
+
+  if(DWARFLENS_BUILD_LIBFUZZER)
+    target_compile_definitions(fuzz_parsers PRIVATE DWARFLENS_USE_LIBFUZZER)
+    target_compile_options(fuzz_parsers PRIVATE -fsanitize=fuzzer,address,undefined)
+    target_link_options(fuzz_parsers PRIVATE -fsanitize=fuzzer,address,undefined)
+  else()
+    add_test(NAME FuzzResilience COMMAND fuzz_parsers)
+  endif()
+
   # CTest properties
-  set_tests_properties(SpanReaderRangeMap WasmParser DwarfExtraction PROPERTIES
+  set_tests_properties(SpanReaderRangeMap WasmParser MachoPeParser DwarfExtraction PROPERTIES
     TIMEOUT 60
   )
+  if(NOT DWARFLENS_BUILD_LIBFUZZER)
+    set_tests_properties(FuzzResilience PROPERTIES TIMEOUT 120)
+  endif()
 endif()
 
 # =============================================================================

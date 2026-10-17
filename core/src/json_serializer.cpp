@@ -9,9 +9,6 @@ namespace dwarflens {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-static std::string jb_quote(const std::string& s) {
-    return JsonBuilder::quote(s);
-}
 
 static std::string serialize_section_summary(
     const BinaryAnalysis::SectionSummary& s, int ind) {
@@ -169,8 +166,16 @@ std::string JsonSerializer::serialize(const BinaryAnalysis& analysis) {
     o << "{\n";
     o << i2 << JsonBuilder::kv("filename",    analysis.filename)    << ",\n";
     o << i2 << JsonBuilder::kv("file_size",   analysis.file_size)   << ",\n";
-    o << i2 << JsonBuilder::kv("format",      analysis.format == BinaryAnalysis::Format::ELF
-                                               ? std::string("ELF") : std::string("Wasm")) << ",\n";
+    auto format_str = [](BinaryAnalysis::Format f) {
+        switch (f) {
+            case BinaryAnalysis::Format::ELF:   return "ELF";
+            case BinaryAnalysis::Format::Wasm:  return "Wasm";
+            case BinaryAnalysis::Format::MachO: return "Mach-O";
+            case BinaryAnalysis::Format::PE:    return "PE";
+        }
+        return "Unknown";
+    };
+    o << i2 << JsonBuilder::kv("format",      std::string(format_str(analysis.format))) << ",\n";
     o << i2 << JsonBuilder::kv("flash_size",  analysis.flash_size)  << ",\n";
     o << i2 << JsonBuilder::kv("ram_size",    analysis.ram_size)    << ",\n";
 
