@@ -58,6 +58,19 @@ export class DashboardApp {
   }
 
   async checkAuth(): Promise<void> {
+    // Check if URL hash contains a one-time handoff code (from cross-origin OAuth on Safari/Brave)
+    const hash = window.location.hash || '';
+    if (hash.startsWith('#code=')) {
+      const code = hash.substring(6).split('&')[0];
+      try {
+        await api.exchangeCode(code);
+        // Clean URL immediately to remove single-use code from address bar and history
+        window.history.replaceState(null, '', window.location.pathname + '#projects');
+      } catch (err) {
+        console.error('Failed to exchange one-time OAuth code:', err);
+      }
+    }
+
     try {
       const data = await api.getMe();
       this.user = data.user;
