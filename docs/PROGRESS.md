@@ -55,7 +55,7 @@
 - [x] 18. **Dependency audit** — upgrade drizzle-orm to patched version, run `npm audit` for server and web.
 
 ### P3 — Login on Other Domains
-- [ ] 19. **Cross-origin login** — put app and API on same site or implement one-time-code handoff (OAuth callback redirects to `APP_URL#code=...`, frontend exchanges via POST for session token in `sessionStorage`).
+- [x] 19. **Cross-origin login** — put app and API on same site or implement one-time-code handoff (OAuth callback redirects to `APP_URL#code=...`, frontend exchanges via POST for session token in `sessionStorage`).
 
 ### P4 — GitHub Action
 - [ ] 20. **Action injection safety** — never interpolate `${{ }}` in `run:` scripts; pass all inputs and GitHub context through `env:` and reference `"$VAR"` in bash.
@@ -161,6 +161,10 @@
 ### P2-18: Dependency Vulnerability Audit & Upgrades
 - **Completed:** Upgraded `drizzle-orm` to `^0.45.4` and `drizzle-kit` to `^0.31.11` to resolve SQL identifier injection (GHSA-gpj5-g38j-94v9); upgraded `vitest` to `^5.0.5` in `server/` to patch tinypool prototype pollution / RCE vulnerabilities; upgraded `vite` to `^6.4.5` in `web/` to resolve esbuild dev server vulnerabilities, achieving 0 npm audit vulnerabilities in `web/`. Commit: `0e4beb1`.
 - **Verification:** Ran `npm audit` on both `server/` and `web/`; verified TypeScript compilation and all 33 Vitest server test suites (169/169 passed); verified clean frontend Vite build.
+
+### P3-19: Cross-Origin Login & One-Time-Code Handoff
+- **Completed:** Implemented ephemeral one-time-code handoff (`/auth/handoff.ts` and `POST /api/v1/auth/exchange-code`) allowing OAuth callbacks to transfer authentication to cross-site web frontends via URL hash without relying on third-party cookies (bypassing Safari ITP and Brave Shields); updated web SPA client to store tokens in `sessionStorage` and authenticate via `Authorization: Bearer <sessionId>`; documented apex same-site domain configuration and CNAME setup in `docs/DEPLOYMENT.md`. Commit: `4bbc1f4`.
+- **Verification:** Authored `server/tests/security_cross_origin_login.test.ts` (3 tests verifying single-use code exchange, rejection of expired/replayed codes, and cookie-free Bearer authentication). All 34 server vitest test files (172 tests) passed, TypeScript typecheck clean, web build clean.
 
 
 
