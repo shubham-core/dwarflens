@@ -2,6 +2,7 @@
 
 > **A high-performance systems engineering tool that helps C, C++, Rust, and WebAssembly developers find wasted memory, eliminate CPU cache misses, and prevent binary bloat in CI.**
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Online-success.svg)](https://shubham-dataeng.github.io/dwarflens/)
 [![CI](https://github.com/shubham-dataeng/dwarflens/actions/workflows/ci.yml/badge.svg)](https://github.com/shubham-dataeng/dwarflens/actions)
 [![Fuzzing & Security](https://github.com/shubham-dataeng/dwarflens/actions/workflows/fuzz.yml/badge.svg)](https://github.com/shubham-dataeng/dwarflens/actions)
 [![Release](https://github.com/shubham-dataeng/dwarflens/actions/workflows/release.yml/badge.svg)](https://github.com/shubham-dataeng/dwarflens/releases)
