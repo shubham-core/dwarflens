@@ -52,7 +52,7 @@
 - [x] 15. **Input validation** — validate all route params as UUIDs (400 on bad input), wrap `c.req.json()` in safe parsing, add `app.onError` returning generic 500 JSON, enforce 5 MB body limit via middleware.
 - [x] 16. **Rate limiting** — use platform trusted client IP (not raw `X-Forwarded-For`), apply to login/OAuth/share/ingest routes, document multi-instance shared store requirement.
 - [x] 17. **Session hardening** — hash session IDs in DB, delete expired sessions periodically, require typed confirmation for destructive actions, don't delete orgs that still have other members.
-- [ ] 18. **Dependency audit** — upgrade drizzle-orm to patched version, run `npm audit` for server and web.
+- [x] 18. **Dependency audit** — upgrade drizzle-orm to patched version, run `npm audit` for server and web.
 
 ### P3 — Login on Other Domains
 - [ ] 19. **Cross-origin login** — put app and API on same site or implement one-time-code handoff (OAuth callback redirects to `APP_URL#code=...`, frontend exchanges via POST for session token in `sessionStorage`).
@@ -157,6 +157,10 @@
 ### P2-17: Session Token Hashing & Safe Destructive Deletions
 - **Completed:** Hardened session management to store only SHA-256 hashes of session tokens in the database, preventing token compromise upon DB leaks; added `cleanupExpiredSessions()` with periodic background execution and retention hook; enforced typed confirmation (`confirmName`) for destructive project deletion (`DELETE /api/v1/projects/:id`) and account deletion (`DELETE /api/v1/auth/me`), rejecting missing/mismatched requests with 400; preserved multi-member organizations when an owner deletes their account, transferring ownership rather than deleting the org. Commit: `834b2db`.
 - **Verification:** Authored `server/tests/security_session_hardening.test.ts` (5 tests verifying SHA-256 session hash storage, expired session cleanup, typed project confirmation rejection/success, typed account confirmation rejection/success, and multi-member org preservation). All 33 server vitest test files (169 tests) passed, TypeScript typecheck clean, web build clean.
+
+### P2-18: Dependency Vulnerability Audit & Upgrades
+- **Completed:** Upgraded `drizzle-orm` to `^0.45.4` and `drizzle-kit` to `^0.31.11` to resolve SQL identifier injection (GHSA-gpj5-g38j-94v9); upgraded `vitest` to `^5.0.5` in `server/` to patch tinypool prototype pollution / RCE vulnerabilities; upgraded `vite` to `^6.4.5` in `web/` to resolve esbuild dev server vulnerabilities, achieving 0 npm audit vulnerabilities in `web/`. Commit: `0e4beb1`.
+- **Verification:** Ran `npm audit` on both `server/` and `web/`; verified TypeScript compilation and all 33 Vitest server test suites (169/169 passed); verified clean frontend Vite build.
 
 
 
