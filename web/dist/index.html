@@ -838,6 +838,10 @@
       <button class="nav-btn" data-nav="diff" id="nav-diff">Diff</button>
       <button class="nav-btn" data-nav="structs" id="nav-structs">Structs</button>
       <button class="nav-btn" data-nav="about" id="nav-about">About</button>
+      <a href="https://github.com/shubham-core/dwarflens" target="_blank" rel="noopener noreferrer" class="nav-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.35rem; color: var(--text-primary);" title="View GitHub Repository">
+        <svg height="15" width="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
     </nav>
   </header>
 
@@ -853,9 +857,9 @@
       <!-- File Dropzone -->
       <div class="dropzone" id="file-dropzone">
         <span class="dropzone-icon">📥</span>
-        <h2 class="dropzone-title">Drop ELF or .wasm binary here or click to browse</h2>
-        <p class="dropzone-sub">Accepts ELF binaries, WebAssembly modules (.wasm), or DwarfLens JSON reports</p>
-        <input type="file" id="file-input" accept=".elf,.so,.o,.wasm,.bin,.json" />
+        <h2 class="dropzone-title">Drop ELF, Wasm, Mach-O, or PE binary here</h2>
+        <p class="dropzone-sub">Accepts Linux ELF, WebAssembly (.wasm), macOS Mach-O, Windows PE (.exe/.dll), or DwarfLens JSON reports</p>
+        <input type="file" id="file-input" accept=".elf,.so,.o,.wasm,.bin,.json,.exe,.dll,.dylib,.macho" />
       </div>
 
       <!-- Demo Selector -->
@@ -1224,7 +1228,7 @@
       <div class="card">
         <h2 style="font-size: 1.3rem; margin-bottom: 0.75rem;">About DwarfLens</h2>
         <p style="color: var(--text-secondary); margin-bottom: 1rem;">
-          DwarfLens is a high-performance C++20 and WebAssembly tool designed for low-level systems engineers, game programmers, and embedded developers. It parses ELF binaries and DWARF v4/v5 debugging information (`.debug_info`, `.debug_abbrev`, `.debug_str`) to reveal exact memory footprints, padding waste, and CPU cache line alignment issues.
+          DwarfLens is a high-performance C++23 and WebAssembly tool designed for low-level systems engineers, game programmers, and embedded developers. It parses Linux ELF64, WebAssembly (.wasm), macOS Mach-O, and Windows PE/COFF containers alongside DWARF v4/v5 debugging information (`.debug_info`, `.debug_abbrev`, `.debug_str`) to reveal exact memory footprints, padding waste, and CPU cache line alignment issues.
         </p>
 
         <h3 style="font-size: 1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--accent);">Why Struct Layout Matters</h3>
@@ -1236,17 +1240,17 @@
 
         <h3 style="font-size: 1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--accent);">CLI Usage</h3>
         <div class="code-box">
-<pre><code># Analyze an ELF or WebAssembly binary:
+<pre><code># Analyze an ELF, Wasm, Mach-O, or PE binary:
 $ dwarflens analyze firmware.elf
 
-# Export full JSON report:
-$ dwarflens analyze --json firmware.elf > report.json
+# Export full JSON report (drop it into this web app):
+$ dwarflens analyze ./my_app --format=json > report.json
 
 # Diff two binaries in CI/CD pipeline:
-$ dwarflens diff --json base.elf target.elf > diff.json
+$ dwarflens diff base.elf target.elf --format=table
 
-# Enforce zero padding regression in Git actions:
-$ dwarflens diff --fail-on-regression base.elf target.elf</code></pre>
+# Enforce zero padding regression and budget in CI:
+$ dwarflens diff base.elf target.elf --max-growth-bytes=10240 --fail-on-padding-regression</code></pre>
         </div>
       </div>
     </section>
@@ -1256,7 +1260,7 @@ $ dwarflens diff --fail-on-regression base.elf target.elf</code></pre>
   <div id="cell-tooltip"></div>
 
   <footer>
-    DwarfLens &mdash; Production-Grade DWARF Memory Layout & Binary Size Analyzer
+    DwarfLens &mdash; Created by <a href="https://github.com/shubham-core" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none; font-weight: 600;">@shubham-core</a> &bull; Production-Grade DWARF Memory Layout & Binary Size Analyzer &bull; <a href="https://github.com/shubham-core/dwarflens" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none;">GitHub</a>
   </footer>
 
 </body>
