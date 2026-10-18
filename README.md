@@ -1,14 +1,57 @@
 # 🔍 DwarfLens
 
-> **A high-performance systems engineering tool that helps C, C++, Rust, and WebAssembly developers find wasted memory, eliminate CPU cache misses, and prevent binary bloat in CI.**
+<p align="center">
+  <a href="https://shubham-core.github.io/dwarflens/">
+    <img src="assets/dwarflens-demo.gif" alt="DwarfLens CLI & Wasm Demo" width="850px" />
+  </a>
+  <br>
+  <em>Live Demo: Zero-dependency C++23 ELF/DWARF parser detecting 64-byte CPU cache-line splits in sub-second execution.</em>
+</p>
+
+> **A zero-dependency C++23 systems profiling engine that parses DWARF/ELF64 debug metadata, pinpoints 64-byte CPU cache-line splits, and eliminates memory bloat via client-side WebAssembly.**
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Online-success.svg)](https://shubham-core.github.io/dwarflens/)
-[![CI](https://github.com/shubham-core/dwarflens/actions/workflows/ci.yml/badge.svg)](https://github.com/shubham-core/dwarflens/actions)
-[![Fuzzing & Security](https://github.com/shubham-core/dwarflens/actions/workflows/fuzz.yml/badge.svg)](https://github.com/shubham-core/dwarflens/actions)
-[![Release](https://github.com/shubham-core/dwarflens/actions/workflows/release.yml/badge.svg)](https://github.com/shubham-core/dwarflens/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-purple.svg)](CMakeLists.txt)
-[![Wasm](https://img.shields.io/badge/WebAssembly-wasm32-orange.svg)](wasm/)
+[![WebAssembly](https://img.shields.io/badge/WebAssembly-wasm32-orange.svg)](wasm/)
+[![CI](https://github.com/shubham-core/dwarflens/actions/workflows/ci.yml/badge.svg)](https://github.com/shubham-core/dwarflens/actions)
+[![Fuzzing](https://github.com/shubham-core/dwarflens/actions/workflows/fuzz.yml/badge.svg)](https://github.com/shubham-core/dwarflens/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+---
+
+### 🏛️ Architecture Pipeline
+
+```
+┌─────────────────────────────────┐
+│ Compiled Binary                 │
+│ (ELF64 / Mach-O / PE-COFF / Wasm)│
+└────────────────┬────────────────┘
+                 │ (Zero-Copy Span Reader)
+                 ▼
+┌─────────────────────────────────┐
+│ Binary & DWARF Metadata Parser  │
+│ (.debug_info / .debug_abbrev)   │
+└────────────────┬────────────────┘
+                 │ (DIE Traversal & Struct Layouts)
+                 ▼
+┌─────────────────────────────────┐
+│ 64-Byte Cache Inspector         │
+│ (Offset % 64 + Size > 64)       │
+└────────────────┬────────────────┘
+                 │ (Padding Holes & Split Detection)
+                 ▼
+┌─────────────────────────────────┐
+│ Optimal Struct Repacker Engine  │
+│ (Greedy Descent Field Reorder)  │
+└────────────────┬────────────────┘
+                 │
+        ┌────────┴────────┐
+        ▼                 ▼
+┌──────────────┐   ┌───────────────────────┐
+│ CLI / CI JSON│   │ Client-Side Wasm GUI  │
+│ Regressions  │   │ (Zero-Install Canvas) │
+└──────────────┘   └───────────────────────┘
+```
 
 ---
 
