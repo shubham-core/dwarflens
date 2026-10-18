@@ -196,3 +196,34 @@ The API extracts the client's trusted IP using platform headers:
 > [!NOTE]
 > The default rate limiter uses an in-memory sliding window store suitable for single-instance deployments (standard on Render and Fly.io single-container setups).
 > When horizontally scaling to multiple backend instances or serverless worker pools, a shared centralized store (such as Redis or Upstash) must be configured to coordinate request counters across instances.
+
+---
+
+## 7. Custom Domain and Cross-Origin Authentication (Safari & Brave Compatibility)
+
+### A. Same-Site Apex Domain Setup (Recommended for Custom Domains)
+To avoid third-party cookie restrictions entirely across modern browsers (such as Apple Safari Intelligent Tracking Prevention and Brave Shields), configure both the frontend SPA and the backend API on the same registrable apex domain:
+- **Frontend SPA:** `https://app.yourdomain.com` (or `https://yourdomain.com`)
+- **Backend API:** `https://api.yourdomain.com`
+
+#### DNS Configuration
+1. **Frontend (Vercel / Cloudflare Pages / GitHub Pages):**
+   - Add CNAME record: `app.yourdomain.com` -> `cname.vercel-dns.com` (or Cloudflare Pages target).
+2. **Backend (Render / Fly.io / Railway):**
+   - Add CNAME record: `api.yourdomain.com` -> `dwarflens.onrender.com`.
+
+#### Environment Configuration
+Update environment variables on the backend server:
+```bash
+APP_URL="https://app.yourdomain.com"
+API_URL="https://api.yourdomain.com"
+```
+When configured on subdomains of the same parent site, cookies can be shared with `SameSite=Lax; Secure; Domain=.yourdomain.com`, enabling seamless first-party credentials across both origins.
+
+### B. One-Time Code Handoff (Cross-Site Deployments)
+When deploying across distinct third-party domains (e.g., GitHub Pages at `https://shubham-core.github.io/dwarflens/` and Render at `https://dwarflens.onrender.com`), browsers block cross-site `SameSite=None; Secure` cookies.
+
+DwarfLens transparently handles this with an automated one-time-code exchange:
+1. Upon GitHub OAuth callback, the backend generates an ephemeral cryptographic code (60-second TTL) and redirects to: `https://shubham-core.github.io/dwarflens/#code=<ephemeralCode>`.
+2. The frontend SPA immediately detects `#code=`, exchanges it via `POST /api/v1/auth/exchange-code`, and purges the code from the address bar.
+3. The resulting session token is kept in `sessionStorage` and transmitted via `Authorization: Bearer <sessionId>` headers for all subsequent API calls, guaranteeing 100% login reliability in Safari, Brave, and Incognito browsing mode.

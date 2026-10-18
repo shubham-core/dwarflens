@@ -10,7 +10,8 @@ import {
   exchangeGitHubCode,
   getGitHubUserProfile,
 } from '../auth/github.js';
-import { createSession, deleteSession } from '../auth/sessions.js';
+import { createSession, deleteSession, validateSession } from '../auth/sessions.js';
+import { createOneTimeCode, exchangeOneTimeCode } from '../auth/handoff.js';
 import { AuthContextVariables, requireAuth, requireUser } from '../middleware/auth.js';
 import { rateLimiter } from '../middleware/rateLimit.js';
 
@@ -148,8 +149,9 @@ authRouter.get(
       expires: expiresAt,
     });
 
+    const handoffCode = createOneTimeCode(sessionId);
     const targetUrl = new URL(env.APP_URL);
-    targetUrl.hash = '#projects';
+    targetUrl.hash = `#code=${handoffCode}`;
     return c.redirect(targetUrl.toString());
   } catch (err: any) {
     console.error('OAuth callback error:', err);
@@ -227,6 +229,43 @@ authRouter.post(
     sessionId,
   });
 });
+
+// 3.1 Exchange One-Time Code for Session Token (Cross-Origin Handoff for Safari/Brave)
+authRouter.post(
+  '/exchange-code',
+  rateLimiter({ limit: 30, windowMs: 60 * 1000, keyPrefix: 'auth-exchange' }),
+  async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const code = body?.code;
+    if (!code || typeof code !== 'string') {
+      return c.json({ error: 'Missing or invalid authorization code' }, 400);
+    }
+
+    const sessionId = exchangeOneTimeCode(code);
+    if (!sessionId) {
+      return c.json({ error: 'Invalid or expired authorization code' }, 400);
+    }
+
+    const sessionData = await validateSession(sessionId);
+    if (!sessionData) {
+      return c.json({ error: 'Session expired or invalidated' }, 401);
+    }
+
+    setCookie(c, 'dwarflens_session', sessionId, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: env.NODE_ENV === 'production' ? 'None' : 'Lax',
+      path: '/',
+      expires: sessionData.session.expiresAt,
+    });
+
+    return c.json({
+      sessionId,
+      user: sessionData.user,
+      expiresAt: sessionData.session.expiresAt,
+    });
+  }
+);
 
 // 4. Get current user and organizations
 authRouter.get('/me', requireUser, async (c) => {
