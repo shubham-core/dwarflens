@@ -27,21 +27,12 @@ jobs:
             use-tar: true
 
           # macOS Apple Silicon (arm64)
-          - os: macos-latest
+          - os: macos-14
             os-name: macos
             arch: arm64
             artifact-name: dwarflens-macos-arm64
             binary-path: build/dwarflens
             archive-name: dwarflens-macos-arm64.tar.gz
-            use-tar: true
-
-          # macOS Intel (x86_64)
-          - os: macos-13
-            os-name: macos
-            arch: x86_64
-            artifact-name: dwarflens-macos-x86_64
-            binary-path: build/dwarflens
-            archive-name: dwarflens-macos-x86_64.tar.gz
             use-tar: true
 
           # Windows x86_64

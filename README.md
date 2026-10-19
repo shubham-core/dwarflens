@@ -140,7 +140,6 @@ Statically linked, zero-dependency release binaries are automatically compiled a
 
 - **Linux x86_64**: `dwarflens-linux-x86_64.tar.gz`
 - **macOS Apple Silicon (arm64)**: `dwarflens-macos-arm64.tar.gz`
-- **macOS Intel (x86_64)**: `dwarflens-macos-x86_64.tar.gz`
 - **Windows x86_64**: `dwarflens-windows-x86_64.zip`
 
 Each release archive includes SHA256 checksums verified by GitHub Actions.
