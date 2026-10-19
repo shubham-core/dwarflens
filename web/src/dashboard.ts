@@ -118,6 +118,9 @@ export class DashboardApp {
     } else if (hash.startsWith('#analyses/')) {
       const analysisId = hash.replace('#analyses/', '').split('?')[0];
       this.renderAnalysisDetailView(analysisId);
+    } else if (hash.startsWith('#shared/')) {
+      const token = hash.replace('#shared/', '').split('?')[0];
+      this.renderSharedReportView(token);
     } else if (hash.startsWith('#compare')) {
       this.renderCompareView();
     } else {
@@ -544,6 +547,50 @@ export class DashboardApp {
       });
     } catch (err: any) {
       el.innerHTML = `<div class="alert alert-error">Failed to load analysis: ${err.message}</div>`;
+    }
+  }
+
+  async renderSharedReportView(token: string): Promise<void> {
+    const el = document.getElementById('view-analysis-detail');
+    if (!el) return;
+    el.style.display = 'block';
+
+    el.innerHTML = '<div style="text-align: center; padding: 3rem; color: var(--text-muted);">Loading public shared report...</div>';
+
+    try {
+      const res = await api.getSharedAnalysis(token);
+      const rawData = res.analysis.rawData;
+
+      el.innerHTML = `
+        <div style="max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem;">
+          <div style="background: rgba(56, 139, 253, 0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 0.75rem 1.25rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <span style="font-weight: 700; color: var(--accent);">🌐 Public Read-Only Report</span>
+              <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">Project: <strong>${res.project.name}</strong> (${res.project.repo})</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">
+              Shared on ${new Date(res.shared_at).toLocaleDateString()}
+            </div>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <h2 style="font-size: 1.5rem; font-weight: 700;">${rawData.filename}</h2>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); font-family: var(--font-mono); margin-top: 0.25rem;">
+              Commit: <strong>${res.analysis.commitSha.substring(0, 7)}</strong> &bull; Branch: <strong>${res.analysis.branch}</strong>
+            </div>
+          </div>
+
+          <!-- Stored Visualizer Mount -->
+          <div id="stored-analysis-mount"></div>
+        </div>
+      `;
+
+      const mount = document.getElementById('stored-analysis-mount');
+      if (mount) {
+        renderStoredAnalysis(mount, rawData);
+      }
+    } catch (err: any) {
+      el.innerHTML = `<div class="alert alert-error">Shared report not found or has been revoked: ${err.message}</div>`;
     }
   }
 

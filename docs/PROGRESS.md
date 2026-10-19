@@ -13,7 +13,7 @@
 
 ## TIER B: Product (medium difficulty)
 - [x] B1. Dashboard in web/
-- [ ] B2. Shareable report links
+- [x] B2. Shareable report links
 - [ ] B3. Budgets
 - [ ] B4. Alerts
 - [ ] B5. Teams
@@ -60,3 +60,7 @@
 ### B1: Dashboard in web/
 - **Completed:** Added client-side SPA routing (`#try`, `#login`, `#projects`, `#projects/:id`, `#analyses/:id`, `#compare`). Preserved 100% client-side Wasm analyzer as "Try it" page. Added login page, projects list, create project modal (reveals generated API key once with copy action), project detail page with branch filter, SVG size history line chart, analyses history table with dual-selection comparison launcher, analysis detail page reusing full visualizers, and compare-two-analyses diff view.
 - **Verification:** Built cleanly (`npm run build --prefix web`), all server vitest suites passed (21/21), ctest passed (6/6).
+
+### B2: Shareable Report Links
+- **Completed:** Added `POST /api/v1/analyses/:id/share` (owner-restricted creation of random 16-byte token), `DELETE /api/v1/analyses/:id/share` (revocation), and public unauthenticated `GET /api/v1/shared/:token`. Added `#shared/:token` route to web dashboard allowing public read-only viewing without login.
+- **Verification:** Added `server/tests/share.test.ts` (4/4 tests passed), all server tests passed (25/25), CTest passed (6/6), and web build cleanly succeeded.
