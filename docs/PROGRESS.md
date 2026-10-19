@@ -58,7 +58,7 @@
 - [x] 19. **Cross-origin login** — put app and API on same site or implement one-time-code handoff (OAuth callback redirects to `APP_URL#code=...`, frontend exchanges via POST for session token in `sessionStorage`).
 
 ### P4 — GitHub Action
-- [ ] 20. **Action injection safety** — never interpolate `${{ }}` in `run:` scripts; pass all inputs and GitHub context through `env:` and reference `"$VAR"` in bash.
+- [x] 20. **Action injection safety** — never interpolate `${{ }}` in `run:` scripts; pass all inputs and GitHub context through `env:` and reference `"$VAR"` in bash.
 - [ ] 21. **Binary download** — download pinned release binary with SHA256 check or build from `${{ github.action_path }}/..`; honor `dwarflens-version`.
 - [ ] 22. **Job failure handling** — use `if: always()` / `continue-on-error` so upload and PR comment run even when thresholds fail; fail job at end; make PR comment non-fatal for fork PRs; document `permissions: pull-requests: write`.
 - [ ] 23. **Fix macos runner and tag v0.1.0** — fix or replace macos-13 runner in `release.yml`, create first tag `v0.1.0`.
@@ -165,6 +165,10 @@
 ### P3-19: Cross-Origin Login & One-Time-Code Handoff
 - **Completed:** Implemented ephemeral one-time-code handoff (`/auth/handoff.ts` and `POST /api/v1/auth/exchange-code`) allowing OAuth callbacks to transfer authentication to cross-site web frontends via URL hash without relying on third-party cookies (bypassing Safari ITP and Brave Shields); updated web SPA client to store tokens in `sessionStorage` and authenticate via `Authorization: Bearer <sessionId>`; documented apex same-site domain configuration and CNAME setup in `docs/DEPLOYMENT.md`. Commit: `4bbc1f4`.
 - **Verification:** Authored `server/tests/security_cross_origin_login.test.ts` (3 tests verifying single-use code exchange, rejection of expired/replayed codes, and cookie-free Bearer authentication). All 34 server vitest test files (172 tests) passed, TypeScript typecheck clean, web build clean.
+
+### P4-20: GitHub Action Script Injection Hardening
+- **Completed:** Audited and refactored `action/action.yml` to eliminate direct `${{ }}` template expression interpolations inside all bash `run:` scripts, passing all workflow inputs and GitHub event context properties exclusively through step-scoped `env:` variables and referencing them as quoted `"$VAR"` variables in bash. Commit: `64e290f`.
+- **Verification:** Authored `server/tests/security_action_injection.test.ts` static analysis test asserting zero `${{` expressions in any `run:` block across `action/action.yml`. All 35 server vitest test files (173 tests) passed, TypeScript typecheck clean, web build clean.
 
 
 
