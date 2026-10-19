@@ -1,6 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { authenticate } from './middleware/auth.js';
+import { authRouter } from './routes/auth.js';
+import { projectsRouter, orgRouter } from './routes/projects.js';
 
 export const app = new Hono();
 
@@ -10,6 +13,9 @@ app.use('*', cors({
   credentials: true,
 }));
 
+// Apply authentication middleware to API routes
+app.use('/api/*', authenticate);
+
 // Health check endpoint
 app.get('/health', (c) => {
   return c.json({
@@ -18,5 +24,10 @@ app.get('/health', (c) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// Mount routes
+app.route('/api/v1/auth', authRouter);
+app.route('/api/v1', projectsRouter);
+app.route('/api/v1', orgRouter);
 
 export default app;
