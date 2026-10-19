@@ -45,9 +45,10 @@ export class DashboardApp {
     if (this.user) {
       if (dashboardLink) dashboardLink.style.display = 'inline-flex';
       authContainer.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
           <span style="font-size: 0.85rem; color: var(--text-secondary);">${this.user.name || this.user.email}</span>
-          <button id="btn-logout" class="btn btn-secondary btn-sm" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">Logout</button>
+          <button id="btn-logout" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Logout</button>
+          <button id="btn-delete-account" class="btn btn-sm" style="background: transparent; color: var(--danger); border: 1px solid rgba(248,81,73,0.3); padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 4px; cursor: pointer;" title="Delete your DwarfLens account">Delete Account</button>
         </div>
       `;
       document.getElementById('btn-logout')?.addEventListener('click', async () => {
@@ -56,7 +57,23 @@ export class DashboardApp {
         this.orgs = [];
         this.currentOrg = null;
         this.updateNav();
-        window.location.hash = '#try';
+        window.location.hash = '#landing';
+      });
+
+      document.getElementById('btn-delete-account')?.addEventListener('click', async () => {
+        const confirmed = window.confirm('Are you absolutely sure you want to permanently delete your account and personal organizations? This action cannot be undone.');
+        if (!confirmed) return;
+        try {
+          await api.deleteAccount();
+          alert('Account deleted successfully.');
+          this.user = null;
+          this.orgs = [];
+          this.currentOrg = null;
+          this.updateNav();
+          window.location.hash = '#landing';
+        } catch (err: any) {
+          alert(`Failed to delete account: ${err.message}`);
+        }
       });
     } else {
       if (dashboardLink) dashboardLink.style.display = 'none';
@@ -75,6 +92,8 @@ export class DashboardApp {
       'view-project-detail',
       'view-analysis-detail',
       'view-compare',
+      'view-privacy',
+      'view-terms',
     ];
     for (const id of viewIds) {
       const el = document.getElementById(id);
@@ -94,7 +113,7 @@ export class DashboardApp {
         tab.classList.add('active');
       } else if (hash.startsWith('#try') && tabTarget === 'try') {
         tab.classList.add('active');
-      } else if (!isLanding && !hash.startsWith('#try') && !hash.startsWith('#login') && !hash.startsWith('#pricing') && !hash.startsWith('#faq') && tabTarget === 'dashboard') {
+      } else if (!isLanding && !hash.startsWith('#try') && !hash.startsWith('#login') && !hash.startsWith('#pricing') && !hash.startsWith('#faq') && !hash.startsWith('#privacy') && !hash.startsWith('#terms') && tabTarget === 'dashboard') {
         tab.classList.add('active');
       } else {
         tab.classList.remove('active');
@@ -108,6 +127,10 @@ export class DashboardApp {
 
     if (hash === '' || hash === '#' || hash === '#landing' || hash.startsWith('#pricing') || hash.startsWith('#faq')) {
       this.renderLandingView(hash);
+    } else if (hash.startsWith('#privacy')) {
+      this.renderPrivacyView();
+    } else if (hash.startsWith('#terms')) {
+      this.renderTermsView();
     } else if (hash === '#try') {
       resetResultsToTryView();
       const el = document.getElementById('view-try');
@@ -158,6 +181,65 @@ export class DashboardApp {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
+
+  renderPrivacyView(): void {
+    const el = document.getElementById('view-privacy');
+    if (!el) return;
+    el.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    el.innerHTML = `
+      <div style="max-width: 800px; margin: 3rem auto; padding: 2rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; line-height: 1.7;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+          <h1 style="font-size: 1.75rem; font-weight: 700;">DwarfLens Privacy Policy</h1>
+          <span style="font-size: 0.8rem; background: var(--bg-tertiary); padding: 0.2rem 0.6rem; border-radius: 4px; color: var(--text-secondary);">Template &bull; Review before launch</span>
+        </div>
+        <div style="color: var(--text-secondary); font-size: 0.95rem;">
+          <h3 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem;">1. Non-Negotiable Privacy Rule: Zero Binaries Uploaded</h3>
+          <p>DwarfLens never uploads compiled ELF, Wasm, Mach-O, or PE binary files to our servers. The native C++ engine parses your files locally on your computer or CI runner. Only lightweight layout summary JSON is transmitted.</p>
+
+          <h3 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem;">2. Information We Store</h3>
+          <p>We store only high-level layout metadata: section names/sizes, symbol names/sizes, struct member offsets, padding hole byte sizes, git commit SHAs, and branch names.</p>
+
+          <h3 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem;">3. Tenant Isolation</h3>
+          <p>All database queries are strictly scoped to your tenant. API keys are hashed with SHA-256 before storage.</p>
+
+          <h3 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem;">4. Your Data Deletion Rights</h3>
+          <p>Organization owners can permanently delete projects (via <code>DELETE /api/v1/projects/:id</code>) or their entire account (via <code>DELETE /api/v1/auth/me</code>) at any time with immediate effect.</p>
+        </div>
+      </div>
+    `;
+  }
+
+  renderTermsView(): void {
+    const el = document.getElementById('view-terms');
+    if (!el) return;
+    el.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    el.innerHTML = `
+      <div style="max-width: 800px; margin: 3rem auto; padding: 2rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; line-height: 1.7;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+          <h1 style="font-size: 1.75rem; font-weight: 700;">DwarfLens Terms of Service</h1>
+          <span style="font-size: 0.8rem; background: var(--bg-tertiary); padding: 0.2rem 0.6rem; border-radius: 4px; color: var(--text-secondary);">Template &bull; Review before launch</span>
+        </div>
+        <div style="color: var(--text-secondary); font-size: 0.95rem;">
+          <h3 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem;">1. Service Overview</h3>
+          <p>DwarfLens provides developer tooling for binary size monitoring, struct memory layout visualization, and automated CI regression tracking.</p>
+
+          <h3 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem;">2. Code Ownership</h3>
+          <p>You retain 100% intellectual property ownership of your source code, compiled binaries, and analysis data. DwarfLens claims no rights over your code.</p>
+
+          <h3 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem;">3. Fair Use & Rate Limiting</h3>
+          <p>API requests are subject to rate limiting (100 req/min standard). Payloads exceeding 5 MB are rejected.</p>
+
+          <h3 style="color: var(--text-primary); margin: 1.5rem 0 0.5rem;">4. Termination & Deletion</h3>
+          <p>You may terminate your account and erase all associated projects at any time through self-service endpoints.</p>
+        </div>
+      </div>
+    `;
+  }
+
 
   renderLoginView(): void {
     const el = document.getElementById('view-login');
@@ -441,13 +523,24 @@ export class DashboardApp {
                         </td>
                       </tr>
                     `).join('')}
-                  </tbody>
                 </table>
               </div>
             `}
           </div>
+
+          <!-- Danger Zone: Delete Project -->
+          <div style="background: var(--bg-secondary); border: 1px solid rgba(248,81,73,0.4); border-radius: 10px; padding: 1.5rem; margin-top: 2rem;">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--danger); margin-bottom: 0.5rem;">Danger Zone</h3>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+              Permanently delete this project and all associated analyses, historical metrics, and project API keys. This action cannot be undone.
+            </p>
+            <button id="btn-delete-project" class="btn btn-sm" style="background: var(--danger); color: #fff; border: none; font-weight: 600; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">
+              🗑️ Delete Project
+            </button>
+          </div>
         </div>
       `;
+
 
       // Render chart
       const chartContainer = document.getElementById('project-size-chart-container');
@@ -500,6 +593,19 @@ export class DashboardApp {
       compareBtn?.addEventListener('click', () => {
         if (this.selectedForDiff.length === 2) {
           window.location.hash = `#compare?project=${projectId}&base=${this.selectedForDiff[1]}&head=${this.selectedForDiff[0]}`;
+        }
+      });
+
+      // Handle Project Deletion (Danger Zone)
+      document.getElementById('btn-delete-project')?.addEventListener('click', async () => {
+        const confirmed = window.confirm(`Are you absolutely sure you want to permanently delete project "${project.name}" (${project.repo})? This will delete all associated analyses and cannot be undone.`);
+        if (!confirmed) return;
+        try {
+          await api.deleteProject(projectId);
+          alert('Project deleted successfully.');
+          window.location.hash = '#projects';
+        } catch (err: any) {
+          alert(`Failed to delete project: ${err.message}`);
         }
       });
     } catch (err: any) {

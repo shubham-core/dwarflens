@@ -21,7 +21,7 @@
 ## TIER C: Simple Tasks and Polish
 - [x] C1. Landing page
 - [x] C2. Docs
-- [ ] C3. Legal and data control
+- [x] C3. Legal and data control
 - [ ] C4. Billing
 - [ ] C5. Deployment
 - [ ] C6. Repo polish
@@ -84,6 +84,11 @@
 ### C2: Docs
 - **Completed:** Authored comprehensive developer documentation: `docs/QUICKSTART.md` (5-minute step-by-step setup guide covering local CLI installation, project/key creation, and copy-paste GitHub Action workflow), `docs/API_REFERENCE.md` (complete REST API specification for analyses ingest, diffs, projects, budgets, alerts, share links, and team member management), `docs/SCHEMA_REFERENCE.md` (detailed reference for `analysis.v1.schema.json` contract covering metadata, sections, symbols, and struct padding holes), and `docs/FAQ.md` (architectural knowledge base answering privacy, formats, cache-line splits, and offline execution).
 - **Verification:** Verified all links and schemas conform to implementation; all server vitest suites passed (48/48), CTest passed (6/6), and web build cleanly succeeded.
+
+### C3: Legal and Data Control
+- **Completed:** Added privacy policy and terms of service templates (`docs/PRIVACY.md`, `docs/TERMS.md`) and rendered client-side views `#privacy` and `#terms` with footer navigation links. Implemented `DELETE /api/v1/projects/:id` (owner-restricted project deletion with database cascade to analyses, keys, and share links) and `DELETE /api/v1/auth/me` (self-service account deletion permanently destroying user records, personal organizations, and active sessions). Added Danger Zone UI for project and account deletion in the web dashboard.
+- **Verification:** Added `server/tests/data_control.test.ts` (4/4 tests passed verifying owner permissions, cross-tenant isolation, cascade cleanups, and session cookie invalidation), all server vitest suites passed (52/52), CTest passed (6/6), and web build cleanly succeeded.
+
 
 
 
