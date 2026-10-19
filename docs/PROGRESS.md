@@ -16,7 +16,7 @@
 - [x] B2. Shareable report links
 - [x] B3. Budgets
 - [x] B4. Alerts
-- [ ] B5. Teams
+- [x] B5. Teams
 
 ## TIER C: Simple Tasks and Polish
 - [ ] C1. Landing page
@@ -72,5 +72,10 @@
 ### B4: Alerts
 - **Completed:** Added budget alert notification system supporting optional Slack incoming-webhook URLs and Resend email alerts. Implemented `PUT /api/v1/projects/:id/alerts` to configure project-level alerts. Ingest triggers alert dispatching on `main`/`master` branch budget failures, falling back to org owner email when custom project recipient is omitted.
 - **Verification:** Added `server/tests/alerts.test.ts` (5/5 tests passed covering Slack webhooks, Resend emails, branch filtering, and org owner fallback), all server vitest suites passed (36/36), CTest passed (6/6), and web build succeeded.
+
+### B5: Teams
+- **Completed:** Implemented organization member management API (`GET /orgs/:orgId/members`, `POST /orgs/:orgId/members`, `PATCH /orgs/:orgId/members/:memberId`, `DELETE /orgs/:orgId/members/:memberId`). Enforced strict role permissions (`owner`, `member`, `viewer`) across all routes: viewers have read-only access (blocked from creating projects, keys, share links, updating budgets/alerts, or ingesting analyses); members can manage projects and ingest analyses; owners have full administrative control. Added safeguards preventing removal or demotion of the final organization owner.
+- **Verification:** Added `server/tests/teams.test.ts` (12/12 tests passed covering member invitations, role promotions/demotions, member removals, last-owner safeguards, and role permission enforcement across every endpoint), all server vitest suites passed (48/48), CTest passed (6/6), and web build succeeded.
+
 
 

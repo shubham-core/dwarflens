@@ -74,6 +74,22 @@ analysesRouter.post(
       return c.json({ error: 'Organization context required' }, 400);
     }
 
+    // Role enforcement for user sessions: viewers cannot ingest analyses
+    if (user) {
+      const [membership] = await db
+        .select({ role: orgMembers.role })
+        .from(orgMembers)
+        .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, user.id)))
+        .limit(1);
+
+      if (!membership) {
+        return c.json({ error: 'Forbidden: User is not a member of this organization' }, 403);
+      }
+      if (membership.role !== 'owner' && membership.role !== 'member') {
+        return c.json({ error: 'Forbidden: Viewers have read-only access' }, 403);
+      }
+    }
+
     // Resolve target Project
     let projectId = c.req.query('projectId') || payload.project_id || apiKey?.projectId;
     let project: any;

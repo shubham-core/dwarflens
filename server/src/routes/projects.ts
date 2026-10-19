@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, and } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { projects, apiKeys, orgMembers, orgs } from '../db/schema.js';
+import { projects, apiKeys, orgMembers, orgs, users, OrgRole } from '../db/schema.js';
 import { AuthContextVariables, requireAuth } from '../middleware/auth.js';
 import { resolveOrg } from '../middleware/org.js';
 import { createApiKey } from '../auth/keys.js';
@@ -287,3 +287,181 @@ orgRouter.delete('/orgs/:orgId/keys/:keyId', requireAuth, resolveOrg('owner'), a
 
   return c.json({ status: 'revoked', id: revoked.id });
 });
+
+// ---------------------------------------------------------------------------
+// Org Members Management Routes
+// ---------------------------------------------------------------------------
+
+// List Org Members (Viewers, members, owners can list)
+orgRouter.get('/orgs/:orgId/members', requireAuth, resolveOrg('viewer'), async (c) => {
+  const orgId = c.get('orgId')!;
+
+  const membersList = await db
+    .select({
+      id: orgMembers.id,
+      orgId: orgMembers.orgId,
+      userId: orgMembers.userId,
+      role: orgMembers.role,
+      createdAt: orgMembers.createdAt,
+      user: {
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        avatarUrl: users.avatarUrl,
+      },
+    })
+    .from(orgMembers)
+    .innerJoin(users, eq(orgMembers.userId, users.id))
+    .where(eq(orgMembers.orgId, orgId));
+
+  return c.json({ members: membersList });
+});
+
+// Invite / Add Org Member (Owner only)
+orgRouter.post('/orgs/:orgId/members', requireAuth, resolveOrg('owner'), async (c) => {
+  const orgId = c.get('orgId')!;
+  const { email, role = 'member' } = await c.req.json();
+
+  if (!email || typeof email !== 'string') {
+    return c.json({ error: 'Valid email is required' }, 400);
+  }
+
+  const validRoles: OrgRole[] = ['owner', 'member', 'viewer'];
+  if (!validRoles.includes(role)) {
+    return c.json({ error: 'Invalid role. Must be owner, member, or viewer' }, 400);
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Find or create user
+  let [targetUser] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, normalizedEmail))
+    .limit(1);
+
+  if (!targetUser) {
+    [targetUser] = await db
+      .insert(users)
+      .values({
+        email: normalizedEmail,
+        name: normalizedEmail.split('@')[0],
+      })
+      .returning();
+  }
+
+  // Check if member already in org
+  const [existingMember] = await db
+    .select()
+    .from(orgMembers)
+    .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, targetUser.id)))
+    .limit(1);
+
+  if (existingMember) {
+    return c.json({ error: 'User is already a member of this organization' }, 409);
+  }
+
+  const [membership] = await db
+    .insert(orgMembers)
+    .values({
+      orgId,
+      userId: targetUser.id,
+      role,
+    })
+    .returning();
+
+  return c.json(
+    {
+      member: {
+        id: membership.id,
+        orgId: membership.orgId,
+        userId: membership.userId,
+        role: membership.role,
+        createdAt: membership.createdAt,
+        user: {
+          id: targetUser.id,
+          email: targetUser.email,
+          name: targetUser.name,
+        },
+      },
+    },
+    201
+  );
+});
+
+// Update Member Role (Owner only)
+orgRouter.patch('/orgs/:orgId/members/:memberId', requireAuth, resolveOrg('owner'), async (c) => {
+  const orgId = c.get('orgId')!;
+  const memberId = c.req.param('memberId');
+  const { role } = await c.req.json();
+
+  const validRoles: OrgRole[] = ['owner', 'member', 'viewer'];
+  if (!validRoles.includes(role)) {
+    return c.json({ error: 'Invalid role. Must be owner, member, or viewer' }, 400);
+  }
+
+  const [target] = await db
+    .select()
+    .from(orgMembers)
+    .where(and(eq(orgMembers.id, memberId), eq(orgMembers.orgId, orgId)))
+    .limit(1);
+
+  if (!target) {
+    return c.json({ error: 'Member not found' }, 404);
+  }
+
+  // Prevent demoting the last owner
+  if (target.role === 'owner' && role !== 'owner') {
+    const owners = await db
+      .select()
+      .from(orgMembers)
+      .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.role, 'owner')));
+
+    if (owners.length <= 1) {
+      return c.json({ error: 'Cannot demote the last organization owner' }, 400);
+    }
+  }
+
+  const [updated] = await db
+    .update(orgMembers)
+    .set({ role })
+    .where(and(eq(orgMembers.id, memberId), eq(orgMembers.orgId, orgId)))
+    .returning();
+
+  return c.json({ member: updated });
+});
+
+// Remove Member (Owner only)
+orgRouter.delete('/orgs/:orgId/members/:memberId', requireAuth, resolveOrg('owner'), async (c) => {
+  const orgId = c.get('orgId')!;
+  const memberId = c.req.param('memberId');
+
+  const [target] = await db
+    .select()
+    .from(orgMembers)
+    .where(and(eq(orgMembers.id, memberId), eq(orgMembers.orgId, orgId)))
+    .limit(1);
+
+  if (!target) {
+    return c.json({ error: 'Member not found' }, 404);
+  }
+
+  // Prevent removing the last owner
+  if (target.role === 'owner') {
+    const owners = await db
+      .select()
+      .from(orgMembers)
+      .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.role, 'owner')));
+
+    if (owners.length <= 1) {
+      return c.json({ error: 'Cannot remove the last organization owner' }, 400);
+    }
+  }
+
+  await db
+    .delete(orgMembers)
+    .where(and(eq(orgMembers.id, memberId), eq(orgMembers.orgId, orgId)));
+
+  return c.json({ status: 'removed', id: memberId });
+});
+
