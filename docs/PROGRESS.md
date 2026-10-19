@@ -20,7 +20,7 @@
 
 ## TIER C: Simple Tasks and Polish
 - [x] C1. Landing page
-- [ ] C2. Docs
+- [x] C2. Docs
 - [ ] C3. Legal and data control
 - [ ] C4. Billing
 - [ ] C5. Deployment
@@ -80,6 +80,11 @@
 ### C1: Landing Page
 - **Completed:** Designed and implemented responsive SaaS landing page in `web/src/landing.ts` featuring: Hero section with an interactive embedded live demo (supporting ELF, WebAssembly, and PE samples with real-time section bars and struct padding previews), 3 comprehensive feature breakdown cards (CI size tracking, DWARF padding/cache splits, automated budgets/alerts), dedicated "Your Binaries Never Leave Your Machine" zero-knowledge privacy assurance section, transparent 3-tier pricing table (Free / Pro / Team placeholders), and collapsible FAQ section. Updated client-side router and header navigation to support seamless `#landing`, `#pricing`, and `#faq` smooth scrolling.
 - **Verification:** Clean TypeScript compile and Vite build (`npm run build --prefix web`), all server vitest suites passed (48/48), and CTest passed (6/6).
+
+### C2: Docs
+- **Completed:** Authored comprehensive developer documentation: `docs/QUICKSTART.md` (5-minute step-by-step setup guide covering local CLI installation, project/key creation, and copy-paste GitHub Action workflow), `docs/API_REFERENCE.md` (complete REST API specification for analyses ingest, diffs, projects, budgets, alerts, share links, and team member management), `docs/SCHEMA_REFERENCE.md` (detailed reference for `analysis.v1.schema.json` contract covering metadata, sections, symbols, and struct padding holes), and `docs/FAQ.md` (architectural knowledge base answering privacy, formats, cache-line splits, and offline execution).
+- **Verification:** Verified all links and schemas conform to implementation; all server vitest suites passed (48/48), CTest passed (6/6), and web build cleanly succeeded.
+
 
 
 
