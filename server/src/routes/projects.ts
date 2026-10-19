@@ -5,6 +5,7 @@ import { projects, apiKeys, orgMembers, orgs, users, OrgRole } from '../db/schem
 import { AuthContextVariables, requireAuth } from '../middleware/auth.js';
 import { resolveOrg } from '../middleware/org.js';
 import { createApiKey } from '../auth/keys.js';
+import { PLAN_LIMITS, PlanType } from '../billing/types.js';
 
 export const projectsRouter = new Hono<{ Variables: AuthContextVariables }>();
 
@@ -221,11 +222,56 @@ orgRouter.get('/orgs/:orgId/projects', requireAuth, resolveOrg('viewer'), async 
 // Create project in Org
 orgRouter.post('/orgs/:orgId/projects', requireAuth, resolveOrg('member'), async (c) => {
   const orgId = c.get('orgId')!;
-  const { name, slug, repo, settings } = await c.req.json();
+  const body = await c.req.json();
+  const { name, slug, repo, is_private, settings } = body;
 
   if (!name || !slug || !repo) {
     return c.json({ error: 'name, slug, and repo are required' }, 400);
   }
+
+  // Check plan limits
+  const [org] = await db
+    .select({ plan: orgs.plan })
+    .from(orgs)
+    .where(eq(orgs.id, orgId))
+    .limit(1);
+
+  const plan = (org?.plan || 'free') as PlanType;
+  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+  // 1. Max projects check
+  const existingProjects = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(eq(projects.orgId, orgId));
+
+  if (existingProjects.length >= limits.maxProjects) {
+    return c.json(
+      {
+        error: `Plan limit reached: The ${plan} plan allows up to ${limits.maxProjects} project(s). Upgrade to Pro for unlimited projects.`,
+        plan,
+        limit: limits.maxProjects,
+      },
+      403
+    );
+  }
+
+  // 2. Private repo check
+  const isPrivate = Boolean(is_private ?? settings?.is_private);
+  if (isPrivate && !limits.allowPrivateRepos) {
+    return c.json(
+      {
+        error: `Private repositories are not allowed on the ${plan} plan. Upgrade to Pro for private repository support.`,
+        plan,
+      },
+      403
+    );
+  }
+
+  const projectSettings = {
+    ...(settings || {}),
+    ...(isPrivate ? { is_private: true } : {}),
+  };
 
   try {
     const [project] = await db
@@ -235,7 +281,7 @@ orgRouter.post('/orgs/:orgId/projects', requireAuth, resolveOrg('member'), async
         name,
         slug,
         repo,
-        settings: settings || {},
+        settings: projectSettings,
       })
       .returning();
 

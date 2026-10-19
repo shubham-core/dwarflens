@@ -22,7 +22,7 @@
 - [x] C1. Landing page
 - [x] C2. Docs
 - [x] C3. Legal and data control
-- [ ] C4. Billing
+- [x] C4. Billing
 - [ ] C5. Deployment
 - [ ] C6. Repo polish
 
@@ -88,6 +88,11 @@
 ### C3: Legal and Data Control
 - **Completed:** Added privacy policy and terms of service templates (`docs/PRIVACY.md`, `docs/TERMS.md`) and rendered client-side views `#privacy` and `#terms` with footer navigation links. Implemented `DELETE /api/v1/projects/:id` (owner-restricted project deletion with database cascade to analyses, keys, and share links) and `DELETE /api/v1/auth/me` (self-service account deletion permanently destroying user records, personal organizations, and active sessions). Added Danger Zone UI for project and account deletion in the web dashboard.
 - **Verification:** Added `server/tests/data_control.test.ts` (4/4 tests passed verifying owner permissions, cross-tenant isolation, cascade cleanups, and session cookie invalidation), all server vitest suites passed (52/52), CTest passed (6/6), and web build cleanly succeeded.
+
+### C4: Billing and Plan Limits
+- **Completed:** Added `plan` column to organizations (`free` default, `pro`, `team`) with migration `0001_military_azazel.sql`. Defined `BillingProvider` interface and implemented `StripeBillingProvider` supporting checkout sessions, customer portal redirects, and webhook lifecycle handling (`checkout.session.completed`, `customer.subscription.deleted`). Enforced plan limits server-side on project creation and ingest auto-creation (Free: 1 project limit, public repositories only; Pro/Team: unlimited projects and private repos). Built data retention cleanup job (`runRetentionCleanup`) and endpoint (`POST /api/v1/billing/retention`) to prune analyses exceeding 30 days on Free and 365 days on Pro tiers.
+- **Verification:** Authored `server/tests/billing.test.ts` (6 tests verifying 1-project Free limit 403, private repo block 403, billing overview, checkout/portal sessions, Stripe webhook plan upgrade/downgrade, and 30-day retention pruning). Ran all tests: Vitest (9 test files, 58/58 passed), CTest (6/6 passed), and clean web build.
+
 
 
 
