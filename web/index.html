@@ -833,7 +833,10 @@
     </div>
 
     <nav class="nav-tabs" aria-label="Main Navigation">
-      <button class="nav-btn active" data-nav="analyze" id="nav-analyze">Analyze</button>
+      <a href="#try" class="nav-btn main-nav-tab active" data-view="try" style="text-decoration: none;">Try local Wasm</a>
+      <a href="#projects" class="nav-btn main-nav-tab" data-view="dashboard" id="nav-dashboard-link" style="text-decoration: none; display: none;">Dashboard</a>
+      <div id="nav-auth-container" style="display: inline-flex; align-items: center; margin-left: 0.25rem;"></div>
+      <button class="nav-btn" data-nav="analyze" id="nav-analyze">Analyze</button>
       <button class="nav-btn" data-nav="diff" id="nav-diff">Diff</button>
       <button class="nav-btn" data-nav="structs" id="nav-structs">Structs</button>
       <button class="nav-btn" data-nav="about" id="nav-about">About</button>
@@ -845,8 +848,10 @@
   </header>
 
   <main>
-    <!-- System Notification Banner -->
-    <div id="alert-banner" class="alert alert-info" style="display: none;">
+    <!-- View: Try local Wasm -->
+    <div id="view-try">
+      <!-- System Notification Banner -->
+      <div id="alert-banner" class="alert alert-info" style="display: none;">
       <span id="alert-message">Ready</span>
       <button class="alert-close" id="alert-close-btn">&times;</button>
     </div>
@@ -1253,6 +1258,14 @@ $ dwarflens diff base.elf target.elf --max-growth-bytes=10240 --fail-on-padding-
         </div>
       </div>
     </section>
+    </div> <!-- /#view-try -->
+
+    <!-- Dashboard Views -->
+    <div id="view-login" style="display: none;"></div>
+    <div id="view-projects" style="display: none;"></div>
+    <div id="view-project-detail" style="display: none;"></div>
+    <div id="view-analysis-detail" style="display: none;"></div>
+    <div id="view-compare" style="display: none;"></div>
   </main>
 
   <!-- Interactive Cell Tooltip -->

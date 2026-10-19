@@ -1085,6 +1085,30 @@ function setupEventListeners(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Stored Analysis Rendering for Dashboard
+// ---------------------------------------------------------------------------
+export function renderStoredAnalysis(container: HTMLElement, rawData: BinaryAnalysis): void {
+  const resultsEl = document.getElementById('results-section');
+  const fileBanner = document.getElementById('file-banner');
+  if (resultsEl) {
+    container.appendChild(resultsEl);
+    resultsEl.style.display = 'flex';
+  }
+  if (fileBanner) {
+    fileBanner.style.display = 'none';
+  }
+  renderAnalysis(rawData);
+}
+
+export function resetResultsToTryView(): void {
+  const tryView = document.getElementById('view-try');
+  const resultsEl = document.getElementById('results-section');
+  if (tryView && resultsEl && !tryView.contains(resultsEl)) {
+    tryView.appendChild(resultsEl);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 async function init(): Promise<void> {
@@ -1106,8 +1130,15 @@ async function init(): Promise<void> {
     console.warn('Wasm initialization skipped:', err);
   }
 
-  // Automatically load the first demo sample for a rich initial presentation
-  await loadSampleData(0);
+  // Initialize SaaS Dashboard
+  const { DashboardApp } = await import('./dashboard.js');
+  const dashboard = new DashboardApp();
+  await dashboard.init();
+
+  // Automatically load the first demo sample for a rich initial presentation if on try view
+  if (!window.location.hash || window.location.hash === '#try') {
+    await loadSampleData(0);
+  }
 }
 
 // Start application when DOM is ready
