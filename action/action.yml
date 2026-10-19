@@ -198,15 +198,15 @@ runs:
         
         if [ $EXIT_CODE -ne 0 ]; then
           echo "exceeded_threshold=true" >> "$GITHUB_OUTPUT"
+          echo "exit_code=${EXIT_CODE}" >> "$GITHUB_OUTPUT"
         else
           echo "exceeded_threshold=false" >> "$GITHUB_OUTPUT"
+          echo "exit_code=0" >> "$GITHUB_OUTPUT"
         fi
-        
-        exit $EXIT_CODE
 
     - name: Upload Analysis to SaaS
       id: upload
-      if: inputs.api-url != '' && inputs.api-key != ''
+      if: always() && inputs.api-url != '' && inputs.api-key != ''
       shell: bash
       env:
         TARGET_BINARY: ${{ inputs.target-binary }}
@@ -261,13 +261,14 @@ runs:
           echo -e "\n\n### ❌ DwarfLens CI Budget Failures\n- ${BUDGET_REASONS}\n" >> "${REPORT_FILE}"
           echo -e "\n\n### ❌ DwarfLens CI Budget Failures\n- ${BUDGET_REASONS}\n" >> "$GITHUB_STEP_SUMMARY"
           
-          exit 1
+          echo "budget_failed=true" >> "$GITHUB_OUTPUT"
         else
+          echo "budget_failed=false" >> "$GITHUB_OUTPUT"
           echo "✅ All project budgets passed successfully."
         fi
 
     - name: Post PR Comment
-      if: github.event_name == 'pull_request'
+      if: always() && github.event_name == 'pull_request'
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
@@ -300,14 +301,44 @@ $(cat "${REPORT_FILE}")
         
         if [ -n "${COMMENT_ID}" ]; then
           # Update existing comment
-          gh api --method PATCH \
+          if ! gh api --method PATCH \
             "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
-            -f "body=${COMMENT_BODY}" > /dev/null
-          echo "Updated existing PR comment #${COMMENT_ID}"
+            -f "body=${COMMENT_BODY}" > /dev/null 2>&1; then
+            echo "⚠️ Warning: Failed to update PR comment (fork PR or missing 'pull-requests: write' permission)."
+          else
+            echo "Updated existing PR comment #${COMMENT_ID}"
+          fi
         else
           # Create new comment
-          gh api --method POST \
+          if ! gh api --method POST \
             "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-            -f "body=${COMMENT_BODY}" > /dev/null
-          echo "Posted new PR comment"
+            -f "body=${COMMENT_BODY}" > /dev/null 2>&1; then
+            echo "⚠️ Warning: Failed to post PR comment (fork PR or missing 'pull-requests: write' permission)."
+          else
+            echo "Posted new PR comment"
+          fi
         fi
+
+    - name: Check Final Status
+      if: always()
+      shell: bash
+      env:
+        EXCEEDED_THRESHOLD: ${{ steps.analyze.outputs.exceeded_threshold }}
+        ANALYSIS_EXIT: ${{ steps.analyze.outputs.exit_code }}
+        BUDGET_FAILED: ${{ steps.upload.outputs.budget_failed }}
+      run: |
+        set -euo pipefail
+        FAILED=false
+        if [ "${EXCEEDED_THRESHOLD:-false}" = "true" ] || [ "${ANALYSIS_EXIT:-0}" != "0" ]; then
+          echo "❌ DwarfLens analysis threshold check failed."
+          FAILED=true
+        fi
+        if [ "${BUDGET_FAILED:-false}" = "true" ]; then
+          echo "❌ DwarfLens SaaS budget evaluation failed."
+          FAILED=true
+        fi
+        if [ "${FAILED}" = "true" ]; then
+          echo "Failing job because thresholds or budgets were violated."
+          exit 1
+        fi
+        echo "✅ All DwarfLens analysis thresholds and budgets passed."
