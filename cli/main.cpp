@@ -9,6 +9,8 @@
 #include "dwarflens/json_serializer.hpp"
 
 #include <algorithm>
+#include <chrono>
+#include <ctime>
 #include <cstring>
 #include <fstream>
 #include <functional>
@@ -21,6 +23,15 @@
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+static std::string current_iso_timestamp() {
+    auto now = std::chrono::system_clock::now();
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm{};
+    gmtime_r(&t, &tm);
+    char buf[32];
+    std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tm);
+    return std::string(buf);
+}
 static std::vector<uint8_t> read_file(const std::string& path) {
     std::ifstream f(path, std::ios::binary);
     if (!f) return {};
@@ -532,11 +543,14 @@ static std::string make_markdown_diff(const dwarflens::DiffResult& diff) {
 static void usage(const char* prog) {
     std::cerr << "Usage:\n"
               << "  " << prog << " analyze <binary> [--format=table|json|markdown]\n"
+              << "                         [--repo=NAME] [--commit=SHA] [--branch=BRANCH]\n"
+              << "                         [--build-name=NAME] [--timestamp=ISO] [--compiler=COMP] [--flags=FLAGS]\n"
               << "  " << prog << " diff <base> <target> [--format=table|json|markdown]\n"
               << "                                      [--max-growth-bytes=N]\n"
               << "                                      [--fail-on-padding-regression]\n\n"
               << "Examples:\n"
               << "  " << prog << " analyze myprogram\n"
+              << "  " << prog << " analyze myprogram --format=json --repo=my/repo --commit=abc1234 --branch=main\n"
               << "  " << prog << " diff base.elf head.elf --format=markdown\n"
               << "  " << prog << " diff a.out b.out --max-growth-bytes=4096 --fail-on-padding-regression\n";
 }
@@ -549,6 +563,14 @@ int main(int argc, char* argv[]) {
     int64_t max_growth = -1;
     bool fail_padding = false;
 
+    std::string repo;
+    std::string commit_sha;
+    std::string branch;
+    std::string build_name;
+    std::string timestamp;
+    std::string compiler;
+    std::string flags;
+
     // Parse flags
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -556,6 +578,14 @@ int main(int argc, char* argv[]) {
         else if (arg.starts_with("--max-growth-bytes="))
             max_growth = std::stoll(arg.substr(19));
         else if (arg == "--fail-on-padding-regression") fail_padding = true;
+        else if (arg.starts_with("--repo=")) repo = arg.substr(7);
+        else if (arg.starts_with("--commit-sha=")) commit_sha = arg.substr(13);
+        else if (arg.starts_with("--commit=")) commit_sha = arg.substr(9);
+        else if (arg.starts_with("--branch=")) branch = arg.substr(9);
+        else if (arg.starts_with("--build-name=")) build_name = arg.substr(13);
+        else if (arg.starts_with("--timestamp=")) timestamp = arg.substr(12);
+        else if (arg.starts_with("--compiler=")) compiler = arg.substr(11);
+        else if (arg.starts_with("--flags=")) flags = arg.substr(8);
     }
 
     if (cmd == "analyze") {
@@ -566,6 +596,17 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         auto analysis = analyze_binary(data, path);
+
+        dwarflens::BinaryAnalysis::Metadata meta;
+        meta.repo = repo;
+        meta.commit_sha = commit_sha;
+        meta.branch = branch;
+        meta.build_name = build_name;
+        meta.timestamp = timestamp.empty() ? current_iso_timestamp() : timestamp;
+        meta.tool_version = "0.1.0";
+        meta.compiler = compiler;
+        meta.flags = flags;
+        analysis.metadata = meta;
 
         if (format == "json") {
             std::cout << dwarflens::JsonSerializer::serialize(analysis) << "\n";
