@@ -1,9 +1,9 @@
 import { env } from '../env.js';
 
-export function getGitHubAuthUrl(state: string): string {
+export function getGitHubAuthUrl(state: string, redirectUri?: string): string {
   const params = new URLSearchParams({
     client_id: env.GITHUB_CLIENT_ID,
-    redirect_uri: `${env.API_URL}/api/v1/auth/github/callback`,
+    redirect_uri: redirectUri || `${env.API_URL}/api/v1/auth/github/callback`,
     scope: 'user:email read:user',
     state,
   });
