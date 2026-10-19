@@ -14,7 +14,7 @@
 ## TIER B: Product (medium difficulty)
 - [x] B1. Dashboard in web/
 - [x] B2. Shareable report links
-- [ ] B3. Budgets
+- [x] B3. Budgets
 - [ ] B4. Alerts
 - [ ] B5. Teams
 
@@ -64,3 +64,8 @@
 ### B2: Shareable Report Links
 - **Completed:** Added `POST /api/v1/analyses/:id/share` (owner-restricted creation of random 16-byte token), `DELETE /api/v1/analyses/:id/share` (revocation), and public unauthenticated `GET /api/v1/shared/:token`. Added `#shared/:token` route to web dashboard allowing public read-only viewing without login.
 - **Verification:** Added `server/tests/share.test.ts` (4/4 tests passed), all server tests passed (25/25), CTest passed (6/6), and web build cleanly succeeded.
+
+### B3: Budgets
+- **Completed:** Implemented project budget settings (`max_total_size`, `max_growth_bytes`, `fail_on_padding_regression`) and `PUT /api/v1/projects/:id/budgets`. Integrated automated budget evaluation into `POST /api/v1/analyses` against base analyses. Updated GitHub Action (`action/action.yml`) to parse `budget_status`, write failures to PR comments / step summary, and fail CI with exit code 1 on violations.
+- **Verification:** Added `server/tests/budgets.test.ts` (6/6 tests passed covering size, growth, and padding regression failures and passes), all server vitest suites passed (31/31), CTest passed (6/6), and web build succeeded.
+
