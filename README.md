@@ -260,10 +260,65 @@ Add DwarfLens to your PR workflow using `.github/workflows/ci.yml` or the standa
     format: markdown
     max-growth-bytes: '10240'        # Fail PR if binary grew by > 10 KiB
     fail-on-padding-regression: true # Fail PR if struct padding increased
+    api-url: 'https://api.dwarflens.com'
+    api-key: ${{ secrets.DWARFLENS_API_KEY }}
 ```
+
+---
+
+## ☁️ DwarfLens Cloud (CI/CD SaaS Platform)
+
+DwarfLens Cloud transforms the native profiling engine into an automated team monitoring platform for binary footprint and cache efficiency regressions.
+
+### 🔒 Zero-Knowledge Privacy Guarantee
+> **Your binaries NEVER leave your machine or CI runners.**
+> Only lightweight schema-validated analysis JSON (`< 5 MB`) containing section totals and struct layout metadata is uploaded to the cloud server.
+
+### Key Cloud Capabilities
+- **📈 Historical Size & Layout Trends:** Interactive SVG trendlines tracking binary footprint, Flash, and RAM consumption across branches and commits over time.
+- **💬 Automated Sticky PR Comments:** Automatically posts or updates a single concise GitHub PR comment with section size deltas, top bloated symbols, and struct padding changes.
+- **🎯 CI Budget Enforcement:** Configure `max_total_size`, `max_growth_bytes`, and `fail_on_padding_regression`. Regressions instantly fail CI pipelines before merging.
+- **🔔 Team Alerts (Slack & Email):** Automatically dispatches notifications to project owners via email (Resend) and Slack webhooks when budgets fail on the `main` branch.
+- **🔗 Shareable Public Reports:** Generate time-limited or revocable public report tokens to share binary layout audits with clients or external teams without requiring an account.
+- **👥 Organizations & Role-Based Access:** Manage team workspaces with granular permissions (`owner`, `member`, `viewer`) and scoped API keys.
+
+### Cloud Quickstart in 3 Steps
+
+1. **Create an Account & Project:** Sign in to the dashboard via GitHub OAuth and generate an organization API key.
+2. **Add Workflow to GitHub Actions:**
+   ```yaml
+   - name: Analyze & Upload DwarfLens Report
+     uses: shubham-core/dwarflens/action@main
+     with:
+       target-binary: ./build/my_app
+       api-url: 'https://api.dwarflens.com'
+       api-key: ${{ secrets.DWARFLENS_API_KEY }}
+   ```
+3. **Monitor Trends & Catch Bloat:** View real-time analyses and memory layout charts on your dashboard.
+
+For detailed deployment and self-hosting instructions, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+---
+
+## 📚 Documentation & Guides
+
+- [5-Minute Quickstart Guide](docs/QUICKSTART.md)
+- [REST API Reference](docs/API_REFERENCE.md)
+- [Analysis JSON Schema Specification](docs/SCHEMA_REFERENCE.md)
+- [Multi-Tenant Data Model](docs/DATA_MODEL.md)
+- [Deployment & Self-Hosting Guide](docs/DEPLOYMENT.md)
+- [Frequently Asked Questions (FAQ)](docs/FAQ.md)
+- [Contributing Guidelines](CONTRIBUTING.md)
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for architecture guidelines, local build instructions, and testing requirements before opening a PR.
 
 ---
 
 ## 📄 License
 
 DwarfLens is released under the **[MIT License](LICENSE)**. Open source and free for commercial and personal use.
+
