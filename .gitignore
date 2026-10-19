@@ -8,3 +8,6 @@ node_modules/
 .DS_Store
 .vscode/
 compile_commands.json
+.env
+.env.local
+
