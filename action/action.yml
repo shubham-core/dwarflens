@@ -21,9 +21,9 @@ inputs:
     required: false
     default: 'false'
   dwarflens-version:
-    description: 'DwarfLens version/ref to use'
+    description: 'DwarfLens version/ref to use (e.g. v0.1.0, latest, source)'
     required: false
-    default: 'main'
+    default: 'v0.1.0'
   api-url:
     description: 'DwarfLens SaaS API URL (e.g. https://api.dwarflens.dev or http://your-server:3000)'
     required: false
@@ -54,25 +54,91 @@ runs:
     - name: Setup DwarfLens
       shell: bash
       env:
+        ACTION_PATH: ${{ github.action_path }}
         GITHUB_WORKSPACE: ${{ github.workspace }}
+        VERSION: ${{ inputs.dwarflens-version }}
       run: |
         set -euo pipefail
-        echo "🔍 Setting up DwarfLens..."
+        echo "🔍 Setting up DwarfLens (version: ${VERSION})..."
         
-        # Try to find pre-built dwarflens in PATH
+        # 1. Try to find pre-built dwarflens in PATH
         if command -v dwarflens &>/dev/null; then
           echo "✅ Found dwarflens in PATH: $(which dwarflens)"
           echo "DWARFLENS_BIN=dwarflens" >> "$GITHUB_ENV"
-        else
-          # Build from source
+          exit 0
+        fi
+
+        # 2. If VERSION is not 'source', attempt to download pinned binary with SHA256 check
+        DOWNLOADED=false
+        if [ "${VERSION}" != "source" ]; then
+          OS_TYPE="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          ARCH_TYPE="$(uname -m)"
+          
+          ARCH=""
+          case "${ARCH_TYPE}" in
+            x86_64|amd64) ARCH="x86_64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+          esac
+          
+          OS=""
+          case "${OS_TYPE}" in
+            linux*) OS="linux" ;;
+            darwin*) OS="macos" ;;
+          esac
+          
+          if [ -n "${OS}" ] && [ -n "${ARCH}" ]; then
+            ARCHIVE_NAME="dwarflens-${OS}-${ARCH}.tar.gz"
+            DOWNLOAD_DIR="${RUNNER_TEMP}/dwarflens_download"
+            mkdir -p "${DOWNLOAD_DIR}"
+            
+            BASE_URL="https://github.com/shubham-core/dwarflens/releases/download/${VERSION}"
+            echo "Attempting to download release archive: ${BASE_URL}/${ARCHIVE_NAME}..."
+            
+            if curl -fsSL "${BASE_URL}/${ARCHIVE_NAME}" -o "${DOWNLOAD_DIR}/${ARCHIVE_NAME}" 2>/dev/null && \
+               curl -fsSL "${BASE_URL}/${ARCHIVE_NAME}.sha256" -o "${DOWNLOAD_DIR}/${ARCHIVE_NAME}.sha256" 2>/dev/null; then
+              
+              echo "Verifying SHA256 checksum..."
+              (
+                cd "${DOWNLOAD_DIR}"
+                if command -v sha256sum &>/dev/null; then
+                  sha256sum -c "${ARCHIVE_NAME}.sha256"
+                elif command -v shasum &>/dev/null; then
+                  shasum -a 256 -c "${ARCHIVE_NAME}.sha256"
+                else
+                  EXPECTED_SHA=$(awk '{print $1}' "${ARCHIVE_NAME}.sha256")
+                  ACTUAL_SHA=$(openssl dgst -sha256 "${ARCHIVE_NAME}" | awk '{print $NF}')
+                  [ "${EXPECTED_SHA}" = "${ACTUAL_SHA}" ]
+                fi
+              )
+              
+              echo "✅ Checksum verified. Extracting archive..."
+              tar -xzf "${DOWNLOAD_DIR}/${ARCHIVE_NAME}" -C "${DOWNLOAD_DIR}"
+              chmod +x "${DOWNLOAD_DIR}/dwarflens"
+              echo "DWARFLENS_BIN=${DOWNLOAD_DIR}/dwarflens" >> "$GITHUB_ENV"
+              echo "✅ DwarfLens ${VERSION} installed successfully from release binary"
+              DOWNLOADED=true
+            else
+              echo "Release binary not available for ${VERSION} on ${OS}-${ARCH}; falling back to source build."
+            fi
+          fi
+        fi
+
+        # 3. Fallback: Build from source using ACTION_PATH/..
+        if [ "${DOWNLOADED}" != "true" ]; then
           echo "Building DwarfLens from source..."
           DWARFLENS_BUILD_DIR="${RUNNER_TEMP}/dwarflens_build"
-          DWARFLENS_SRC_DIR="${RUNNER_TEMP}/dwarflens_src"
           
-          # Clone or use local
-          if [ -f "${GITHUB_WORKSPACE}/CMakeLists.txt" ] && \
-             grep -q "dwarflens" "${GITHUB_WORKSPACE}/CMakeLists.txt" 2>/dev/null; then
+          # Prioritize action path source repo, fallback to workspace or clone
+          if [ -f "${ACTION_PATH}/../CMakeLists.txt" ]; then
+            DWARFLENS_SRC_DIR="${ACTION_PATH}/.."
+          elif [ -f "${GITHUB_WORKSPACE}/CMakeLists.txt" ] && \
+               grep -q "dwarflens" "${GITHUB_WORKSPACE}/CMakeLists.txt" 2>/dev/null; then
             DWARFLENS_SRC_DIR="${GITHUB_WORKSPACE}"
+          else
+            echo "Cloning DwarfLens repository (${VERSION})..."
+            DWARFLENS_SRC_DIR="${RUNNER_TEMP}/dwarflens_repo"
+            git clone --depth 1 --branch "${VERSION}" https://github.com/shubham-core/dwarflens.git "${DWARFLENS_SRC_DIR}" 2>/dev/null || \
+            git clone --depth 1 https://github.com/shubham-core/dwarflens.git "${DWARFLENS_SRC_DIR}"
           fi
           
           mkdir -p "${DWARFLENS_BUILD_DIR}"
@@ -80,10 +146,10 @@ runs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_STANDARD=23 \
             2>&1 | tail -5
-          cmake --build "${DWARFLENS_BUILD_DIR}" --target dwarflens -j$(nproc) 2>&1 | tail -10
+          cmake --build "${DWARFLENS_BUILD_DIR}" --target dwarflens -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)" 2>&1 | tail -10
           
           echo "DWARFLENS_BIN=${DWARFLENS_BUILD_DIR}/dwarflens" >> "$GITHUB_ENV"
-          echo "✅ DwarfLens built successfully"
+          echo "✅ DwarfLens built successfully from source"
         fi
 
     - name: Run Analysis
