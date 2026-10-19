@@ -6,7 +6,7 @@
 ## TIER A: Foundation (hardest, do first)
 - [x] A1. Analysis JSON contract
 - [x] A2. Backend skeleton in server/
-- [ ] A3. Data model and migrations
+- [x] A3. Data model and migrations
 - [ ] A4. Authentication and tenant isolation
 - [ ] A5. Ingest and read API
 - [ ] A6. GitHub Action upgrade (action/)
@@ -40,3 +40,7 @@
 ### A2: Backend Skeleton in server/
 - **Completed:** Created TypeScript backend skeleton with Hono, Drizzle ORM, Zod env validation, Vitest, and Postgres client. Added `docker-compose.yml` for local Postgres, `server/.env.example`, `GET /health` endpoint, and scripts for dev/build/test/migrate.
 - **Verification:** Ran `npm test` in `server/` (health test passed), `npm run build` (clean tsc output), verified C++ ctest (6/6 passed), and verified web build.
+
+### A3: Data Model and Migrations
+- **Completed:** Implemented multi-tenant Drizzle schema for `users`, `sessions`, `orgs`, `org_members`, `projects`, `api_keys`, `analyses`, and `share_links` with compound indexes on `(project_id, created_at)` and `(project_id, branch)`. Generated migration `0000_living_exodus.sql` and documented schema in `docs/DATA_MODEL.md`.
+- **Verification:** Generated SQL migrations with `npm run db:generate`, confirmed TypeScript typecheck and Vitest tests pass in `server/`, ran CTest (6/6 green), and verified web build.
