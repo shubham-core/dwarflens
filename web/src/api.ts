@@ -80,12 +80,18 @@ export interface DiffResult {
 export const API_BASE = ((import.meta as any).env?.VITE_API_BASE as string) || '/api/v1';
 
 async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('dwarflens_session') : null;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> | undefined),
+  };
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
     credentials: 'include',
   });
 
@@ -109,13 +115,20 @@ export const api = {
   },
 
   async devLogin(email: string, name?: string, orgName?: string): Promise<{ user: User; sessionId: string }> {
-    return req('/auth/dev-login', {
+    const res = await req<{ user: User; sessionId: string }>('/auth/dev-login', {
       method: 'POST',
       body: JSON.stringify({ email, name, orgName }),
     });
+    if (res.sessionId && typeof localStorage !== 'undefined') {
+      localStorage.setItem('dwarflens_session', res.sessionId);
+    }
+    return res;
   },
 
   async logout(): Promise<void> {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('dwarflens_session');
+    }
     await req('/auth/logout', { method: 'POST' });
   },
 

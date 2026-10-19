@@ -28,6 +28,21 @@ app.get('/health', (c) => {
   });
 });
 
+// Root endpoint: redirect browsers to GitHub Pages frontend, or return API status
+app.get('/', (c) => {
+  const accept = c.req.header('accept') || '';
+  if (accept.includes('text/html')) {
+    return c.redirect('https://shubham-core.github.io/dwarflens/');
+  }
+  return c.json({
+    service: 'DwarfLens API',
+    status: 'ok',
+    version: '0.1.0',
+    web: 'https://shubham-core.github.io/dwarflens/',
+    health: '/health',
+  });
+});
+
 // Mount routes
 app.route('/api/v1/auth', authRouter);
 app.route('/api/v1', projectsRouter);

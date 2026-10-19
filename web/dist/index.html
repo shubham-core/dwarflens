@@ -820,21 +820,26 @@
       color: var(--text-secondary);
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-Cq_sgzWp.js"></script>
+  <script type="module" crossorigin src="./assets/index-mqpZBFIs.js"></script>
 </head>
 <body>
   <header>
     <div class="brand">
-      <span class="brand-logo">🔍</span>
-      <div>
-        <h1 class="brand-title">DwarfLens</h1>
-        <p class="brand-subtitle">Binary Size & Struct Memory Layout Analyzer</p>
-      </div>
+      <a href="#landing" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 0.75rem;">
+        <span class="brand-logo">🔍</span>
+        <div>
+          <h1 class="brand-title">DwarfLens</h1>
+          <p class="brand-subtitle">Binary Size & Struct Memory Layout Analyzer</p>
+        </div>
+      </a>
       <span id="wasm-badge" class="badge-wasm">WASM Mode: Initializing</span>
     </div>
 
     <nav class="nav-tabs" aria-label="Main Navigation">
-      <a href="#try" class="nav-btn main-nav-tab active" data-view="try" style="text-decoration: none;">Try local Wasm</a>
+      <a href="#landing" class="nav-btn main-nav-tab active" data-view="landing" style="text-decoration: none;">Home</a>
+      <a href="#try" class="nav-btn main-nav-tab" data-view="try" style="text-decoration: none;">Try local Wasm</a>
+      <a href="#pricing" class="nav-btn main-nav-tab" data-view="pricing" style="text-decoration: none;">Pricing</a>
+      <a href="#faq" class="nav-btn main-nav-tab" data-view="faq" style="text-decoration: none;">FAQ</a>
       <a href="#projects" class="nav-btn main-nav-tab" data-view="dashboard" id="nav-dashboard-link" style="text-decoration: none; display: none;">Dashboard</a>
       <div id="nav-auth-container" style="display: inline-flex; align-items: center; margin-left: 0.25rem;"></div>
       <button class="nav-btn" data-nav="analyze" id="nav-analyze">Analyze</button>
@@ -1262,18 +1267,21 @@ $ dwarflens diff base.elf target.elf --max-growth-bytes=10240 --fail-on-padding-
     </div> <!-- /#view-try -->
 
     <!-- Dashboard Views -->
+    <div id="view-landing" style="display: none;"></div>
     <div id="view-login" style="display: none;"></div>
     <div id="view-projects" style="display: none;"></div>
     <div id="view-project-detail" style="display: none;"></div>
     <div id="view-analysis-detail" style="display: none;"></div>
     <div id="view-compare" style="display: none;"></div>
+    <div id="view-privacy" style="display: none;"></div>
+    <div id="view-terms" style="display: none;"></div>
   </main>
 
   <!-- Interactive Cell Tooltip -->
   <div id="cell-tooltip"></div>
 
   <footer>
-    DwarfLens &mdash; Created by <a href="https://github.com/shubham-core" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none; font-weight: 600;">@shubham-core</a> &bull; Production-Grade DWARF Memory Layout & Binary Size Analyzer &bull; <a href="https://github.com/shubham-core/dwarflens" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none;">GitHub</a>
+    DwarfLens &mdash; Created by <a href="https://github.com/shubham-core" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none; font-weight: 600;">@shubham-core</a> &bull; Production-Grade DWARF Memory Layout & Binary Size Analyzer &bull; <a href="#privacy" style="color: var(--text-secondary); text-decoration: none;">Privacy Policy</a> &bull; <a href="#terms" style="color: var(--text-secondary); text-decoration: none;">Terms of Service</a> &bull; <a href="https://github.com/shubham-core/dwarflens" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none;">GitHub</a>
   </footer>
 
 </body>
