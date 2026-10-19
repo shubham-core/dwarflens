@@ -77,7 +77,7 @@ export interface DiffResult {
   }>;
 }
 
-const API_BASE = '/api/v1';
+export const API_BASE = ((import.meta as any).env?.VITE_API_BASE as string) || '/api/v1';
 
 async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
