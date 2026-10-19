@@ -19,7 +19,7 @@
 - [x] B5. Teams
 
 ## TIER C: Simple Tasks and Polish
-- [ ] C1. Landing page
+- [x] C1. Landing page
 - [ ] C2. Docs
 - [ ] C3. Legal and data control
 - [ ] C4. Billing
@@ -76,6 +76,11 @@
 ### B5: Teams
 - **Completed:** Implemented organization member management API (`GET /orgs/:orgId/members`, `POST /orgs/:orgId/members`, `PATCH /orgs/:orgId/members/:memberId`, `DELETE /orgs/:orgId/members/:memberId`). Enforced strict role permissions (`owner`, `member`, `viewer`) across all routes: viewers have read-only access (blocked from creating projects, keys, share links, updating budgets/alerts, or ingesting analyses); members can manage projects and ingest analyses; owners have full administrative control. Added safeguards preventing removal or demotion of the final organization owner.
 - **Verification:** Added `server/tests/teams.test.ts` (12/12 tests passed covering member invitations, role promotions/demotions, member removals, last-owner safeguards, and role permission enforcement across every endpoint), all server vitest suites passed (48/48), CTest passed (6/6), and web build succeeded.
+
+### C1: Landing Page
+- **Completed:** Designed and implemented responsive SaaS landing page in `web/src/landing.ts` featuring: Hero section with an interactive embedded live demo (supporting ELF, WebAssembly, and PE samples with real-time section bars and struct padding previews), 3 comprehensive feature breakdown cards (CI size tracking, DWARF padding/cache splits, automated budgets/alerts), dedicated "Your Binaries Never Leave Your Machine" zero-knowledge privacy assurance section, transparent 3-tier pricing table (Free / Pro / Team placeholders), and collapsible FAQ section. Updated client-side router and header navigation to support seamless `#landing`, `#pricing`, and `#faq` smooth scrolling.
+- **Verification:** Clean TypeScript compile and Vite build (`npm run build --prefix web`), all server vitest suites passed (48/48), and CTest passed (6/6).
+
 
 
 
