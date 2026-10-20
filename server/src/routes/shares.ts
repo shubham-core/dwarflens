@@ -57,10 +57,12 @@ sharesRouter.post(
     .where(and(eq(shareLinks.analysisId, analysisId), isNull(shareLinks.revokedAt)))
     .limit(1);
 
+  const baseUrl = env.APP_URL.replace(/\/+$/, '');
+
   if (existing) {
     return c.json({
       token: existing.token,
-      url: `${env.APP_URL}/#shared/${existing.token}`,
+      url: `${baseUrl}/#shared/${existing.token}`,
       status: 'existing',
     });
   }
@@ -77,7 +79,7 @@ sharesRouter.post(
   return c.json(
     {
       token: created.token,
-      url: `${env.APP_URL}/#shared/${created.token}`,
+      url: `${baseUrl}/#shared/${created.token}`,
       status: 'created',
     },
     201

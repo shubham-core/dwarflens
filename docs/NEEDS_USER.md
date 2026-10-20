@@ -56,3 +56,25 @@ Configure the following environment variables on the Render web service dashboar
 
 ### Email Alerts (Optional)
 * `RESEND_API_KEY`: API key from [Resend](https://resend.com) (`re_...`) for budget violation alerts and invitation emails.
+
+---
+
+## 3. GitHub Branch Protection Rules
+
+To prevent accidental breaks or unauthorized pushes to the production codebase:
+
+1. In the GitHub repository, navigate to **Settings → Branches**.
+2. Click **Add branch ruleset** or **Add branch protection rule**.
+3. Set **Branch name pattern** to `main`.
+4. Enable the following protections:
+   * **Require a pull request before merging**:
+     * Check *Require approvals* (minimum 1 approval recommended).
+     * Check *Dismiss stale pull request approvals when new commits are pushed*.
+   * **Require status checks to pass before merging**:
+     * Check *Require branches to be up to date before merging*.
+     * Search and select the required status checks:
+       * `Native CLI & Tests / build-and-test` (`ci.yml`)
+       * `WASM Build / wasm-build` (`ci.yml`)
+       * `Server CI / test-and-typecheck` (`server.yml`)
+   * **Do not allow bypassing the above settings**: Enforce rules for administrators as well.
+5. Save changes.
