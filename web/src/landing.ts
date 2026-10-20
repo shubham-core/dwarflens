@@ -187,8 +187,8 @@ export function renderLandingPage(container: HTMLElement): void {
               <li>✓ Public shareable report links</li>
             </ul>
 
-            <a href="#login" class="btn btn-primary" style="margin-top: auto; padding: 0.75rem; text-align: center; text-decoration: none; font-weight: 600; border-radius: 8px;">
-              Start Pro Trial
+            <a href="#billing" data-plan="pro" class="btn btn-primary btn-upgrade-plan" style="margin-top: auto; padding: 0.75rem; text-align: center; text-decoration: none; font-weight: 600; border-radius: 8px;">
+              Upgrade to Pro
             </a>
           </div>
 
@@ -207,8 +207,8 @@ export function renderLandingPage(container: HTMLElement): void {
               <li>✓ Dedicated onboarding</li>
             </ul>
 
-            <a href="#login" class="btn btn-secondary" style="margin-top: auto; padding: 0.75rem; text-align: center; text-decoration: none; font-weight: 600; border-radius: 8px;">
-              Contact Sales
+            <a href="#billing" data-plan="team" class="btn btn-secondary btn-upgrade-plan" style="margin-top: auto; padding: 0.75rem; text-align: center; text-decoration: none; font-weight: 600; border-radius: 8px;">
+              Upgrade to Team
             </a>
           </div>
 

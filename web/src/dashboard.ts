@@ -48,6 +48,7 @@ export class DashboardApp {
       authContainer.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.6rem;">
           <span style="font-size: 0.85rem; color: var(--text-secondary);">${escapeHtml(this.user.name || this.user.email)}</span>
+          <a href="#billing" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; text-decoration: none;">Billing</a>
           <button id="btn-logout" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Logout</button>
           <button id="btn-delete-account" class="btn btn-sm" style="background: transparent; color: var(--danger); border: 1px solid rgba(248,81,73,0.3); padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 4px; cursor: pointer;" title="Delete your DwarfLens account">Delete Account</button>
         </div>
@@ -95,6 +96,7 @@ export class DashboardApp {
       'view-compare',
       'view-privacy',
       'view-terms',
+      'view-billing',
     ];
     for (const id of viewIds) {
       const el = document.getElementById(id);
@@ -138,6 +140,12 @@ export class DashboardApp {
       if (el) el.style.display = 'block';
     } else if (hash === '#login') {
       this.renderLoginView();
+    } else if (hash.startsWith('#billing')) {
+      if (!this.user) {
+        window.location.hash = '#login';
+        return;
+      }
+      this.renderBillingView();
     } else if (hash === '#projects') {
       if (!this.user) {
         window.location.hash = '#login';
@@ -919,6 +927,208 @@ export class DashboardApp {
       `;
     } catch (err: any) {
       el.innerHTML = `<div class="alert alert-error">Failed to compute comparison: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  async renderBillingView(): Promise<void> {
+    const el = document.getElementById('view-billing');
+    if (!el || !this.currentOrg) return;
+    el.style.display = 'block';
+
+    const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    const isSuccess = urlParams.get('billing') === 'success';
+    const isCanceled = urlParams.get('billing') === 'canceled';
+
+    el.innerHTML = `
+      <div style="display: flex; justify-content: center; padding: 3rem 1rem;">
+        <div style="color: var(--text-muted); font-size: 0.95rem;">Loading billing information...</div>
+      </div>
+    `;
+
+    try {
+      const billing = await api.getBilling(this.currentOrg.orgId);
+      const isFree = billing.plan === 'free';
+      const isPro = billing.plan === 'pro';
+      const isTeam = billing.plan === 'team';
+
+      const planName = escapeHtml(billing.plan.toUpperCase());
+      const status = billing.subscription?.status || 'active';
+      const periodEnd = billing.subscription?.currentPeriodEnd
+        ? new Date(billing.subscription.currentPeriodEnd).toLocaleDateString()
+        : null;
+
+      el.innerHTML = `
+        <div style="max-width: 900px; margin: 2rem auto; padding: 0 1rem;">
+          ${
+            isSuccess
+              ? `<div style="background: var(--success-bg); color: var(--success); border: 1px solid rgba(63,185,80,0.3); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+                  <span>✓ <strong>Subscription successfully updated!</strong> Your organization plan has been upgraded.</span>
+                  <a href="#billing" class="btn btn-sm btn-secondary" style="font-size: 0.75rem;">Dismiss</a>
+                 </div>`
+              : ''
+          }
+          ${
+            isCanceled
+              ? `<div style="background: var(--warning-bg, rgba(210,153,34,0.15)); color: var(--warning, #d29922); border: 1px solid rgba(210,153,34,0.3); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+                  <span>Checkout process was canceled. No charges were made.</span>
+                  <a href="#billing" class="btn btn-sm btn-secondary" style="font-size: 0.75rem;">Dismiss</a>
+                 </div>`
+              : ''
+          }
+
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem;">Billing & Subscription</h1>
+              <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                Organization: <strong>${escapeHtml(this.currentOrg.orgName)}</strong> (${escapeHtml(this.currentOrg.role)})
+              </p>
+            </div>
+            <div style="display: flex; gap: 0.75rem; align-items: center;">
+              ${
+                !isFree
+                  ? `<button id="btn-manage-subscription" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                      Manage Subscription
+                     </button>`
+                  : ''
+              }
+            </div>
+          </div>
+
+          <!-- Current Plan & Usage Summary -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2.5rem;">
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem;">
+              <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Current Plan</div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">${planName}</span>
+                <span style="font-size: 0.75rem; background: var(--bg-tertiary); padding: 0.15rem 0.5rem; border-radius: 4px; color: var(--text-primary); text-transform: uppercase;">${escapeHtml(status)}</span>
+              </div>
+              ${periodEnd ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">Renews on ${escapeHtml(periodEnd)}</div>` : ''}
+            </div>
+
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem;">
+              <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Projects Monitored</div>
+              <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary);">
+                ${billing.usage.projectCount} <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-secondary);">/ ${escapeHtml(String(billing.limits.maxProjects))}</span>
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">${billing.usage.analysisCount} total analyses indexed</div>
+            </div>
+
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem;">
+              <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">History Retention</div>
+              <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary);">
+                ${escapeHtml(String(billing.limits.retentionDays))} <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-secondary);">${typeof billing.limits.retentionDays === 'number' ? 'Days' : ''}</span>
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">Automated cron pruning</div>
+            </div>
+
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem;">
+              <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Alerts & Repos</div>
+              <div style="font-size: 0.95rem; font-weight: 700; color: ${billing.limits.allowAlerts ? 'var(--success)' : 'var(--text-muted)'}; margin-top: 0.25rem;">
+                Alerts: ${billing.limits.allowAlerts ? 'Enabled' : 'Disabled'}
+              </div>
+              <div style="font-size: 0.85rem; color: ${billing.limits.allowPrivateRepos ? 'var(--success)' : 'var(--text-muted)'}; margin-top: 0.25rem;">
+                Private Repos: ${billing.limits.allowPrivateRepos ? 'Enabled' : 'Disabled'}
+              </div>
+            </div>
+          </div>
+
+          <!-- Upgrade Options -->
+          <div style="margin-top: 2rem;">
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">Available Plans</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+              
+              <!-- Free Card -->
+              <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 1.5rem; opacity: ${isFree ? '1' : '0.7'};">
+                <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem;">Free</div>
+                <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem;">$0 <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-secondary);">/mo</span></div>
+                <ul style="list-style: none; padding: 0; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8;">
+                  <li>✓ 1 Project</li>
+                  <li>✓ Public repositories only</li>
+                  <li>✓ 30-day history</li>
+                  <li>✗ No automated Slack alerts</li>
+                </ul>
+                ${
+                  isFree
+                    ? `<span style="display: block; text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); padding: 0.5rem;">Current Plan</span>`
+                    : ''
+                }
+              </div>
+
+              <!-- Pro Card -->
+              <div style="background: var(--bg-secondary); border: 2px solid ${isPro ? 'var(--accent)' : 'var(--border-color)'}; border-radius: 10px; padding: 1.5rem;">
+                <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--text-primary);">Pro</div>
+                <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem;">$19 <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-secondary);">/mo</span></div>
+                <ul style="list-style: none; padding: 0; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8;">
+                  <li>✓ <strong>Unlimited Projects</strong></li>
+                  <li>✓ Public & Private repositories</li>
+                  <li>✓ 365-day history retention</li>
+                  <li>✓ Slack & Email Budget Alerts</li>
+                </ul>
+                ${
+                  isPro
+                    ? `<span style="display: block; text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--accent); padding: 0.5rem;">Current Plan</span>`
+                    : `<button id="btn-upgrade-pro" class="btn btn-primary" style="width: 100%; padding: 0.6rem; font-weight: 600;">Upgrade to Pro</button>`
+                }
+              </div>
+
+              <!-- Team Card -->
+              <div style="background: var(--bg-secondary); border: 2px solid ${isTeam ? 'var(--accent)' : 'var(--border-color)'}; border-radius: 10px; padding: 1.5rem;">
+                <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--text-primary);">Team</div>
+                <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem;">$49 <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-secondary);">/mo</span></div>
+                <ul style="list-style: none; padding: 0; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8;">
+                  <li>✓ <strong>Unlimited Projects & Members</strong></li>
+                  <li>✓ Unlimited history retention</li>
+                  <li>✓ Role enforcement & team isolation</li>
+                  <li>✓ Priority incident support</li>
+                </ul>
+                ${
+                  isTeam
+                    ? `<span style="display: block; text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--accent); padding: 0.5rem;">Current Plan</span>`
+                    : `<button id="btn-upgrade-team" class="btn btn-secondary" style="width: 100%; padding: 0.6rem; font-weight: 600;">Upgrade to Team</button>`
+                }
+              </div>
+
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Event Listeners
+      document.getElementById('btn-upgrade-pro')?.addEventListener('click', async () => {
+        try {
+          const res = await api.createCheckoutSession(this.currentOrg!.orgId, 'pro');
+          window.location.href = res.checkoutUrl;
+        } catch (err: any) {
+          alert(`Checkout failed: ${err.message}`);
+        }
+      });
+
+      document.getElementById('btn-upgrade-team')?.addEventListener('click', async () => {
+        try {
+          const res = await api.createCheckoutSession(this.currentOrg!.orgId, 'team');
+          window.location.href = res.checkoutUrl;
+        } catch (err: any) {
+          alert(`Checkout failed: ${err.message}`);
+        }
+      });
+
+      document.getElementById('btn-manage-subscription')?.addEventListener('click', async () => {
+        try {
+          const res = await api.createCustomerPortalSession(this.currentOrg!.orgId);
+          window.location.href = res.portalUrl;
+        } catch (err: any) {
+          alert(`Customer portal failed: ${err.message}`);
+        }
+      });
+
+    } catch (err: any) {
+      el.innerHTML = `
+        <div style="max-width: 600px; margin: 3rem auto; padding: 2rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; text-align: center;">
+          <div style="color: var(--danger); font-weight: 600; margin-bottom: 0.5rem;">Failed to load billing information</div>
+          <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">${escapeHtml(err.message)}</div>
+          <a href="#projects" class="btn btn-secondary btn-sm">Return to Projects</a>
+        </div>
+      `;
     }
   }
 }

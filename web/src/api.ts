@@ -188,5 +188,42 @@ export const api = {
   async deleteAccount(): Promise<{ status: string; id: string }> {
     return req('/auth/me', { method: 'DELETE' });
   },
+
+  async getBilling(orgId: string): Promise<{
+    plan: string;
+    limits: {
+      maxProjects: number | string;
+      allowPrivateRepos: boolean;
+      retentionDays: number | string;
+      allowAlerts: boolean;
+    };
+    usage: {
+      projectCount: number;
+      analysisCount: number;
+    };
+    subscription: {
+      plan: string;
+      status: string;
+      currentPeriodEnd?: string | null;
+      stripeCustomerId?: string | null;
+      stripeSubscriptionId?: string | null;
+    };
+  }> {
+    return req(`/orgs/${orgId}/billing`);
+  },
+
+  async createCheckoutSession(orgId: string, plan: 'pro' | 'team'): Promise<{ checkoutUrl: string; sessionId: string }> {
+    return req(`/orgs/${orgId}/billing/checkout`, {
+      method: 'POST',
+      body: JSON.stringify({ plan }),
+    });
+  },
+
+  async createCustomerPortalSession(orgId: string): Promise<{ portalUrl: string }> {
+    return req(`/orgs/${orgId}/billing/portal`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
 };
 
