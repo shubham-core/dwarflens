@@ -35,7 +35,7 @@
 - [x] 2. **Billing webhook signature** — verify Stripe HMAC-SHA256 (`t.payload`, `STRIPE_WEBHOOK_SECRET`, 5-minute tolerance, constant-time compare); reject unsigned requests; look up org via stored `stripe_customer_id`, never trust `org_id` from body.
 - [x] 3. **Retention cron guard** — require `CRON_SECRET` header (constant-time), add a scheduled GitHub Actions workflow calling it daily.
 - [x] 4. **Dev login hardening** — only enabled in `NODE_ENV==='development'`; fail startup in production if `SESSION_SECRET` or `DATABASE_URL` use defaults; hide Quick Dev Login form from production web build (show only when `import.meta.env.DEV`).
-- [ ] 5. **GitHub OAuth state cookie** — store `state` in a short-lived httpOnly cookie, verify in callback; link accounts ONLY by GitHub ID or VERIFIED primary email, never fall back to unverified emails.
+- [x] 5. **GitHub OAuth state cookie** — store `state` in a short-lived httpOnly cookie, verify in callback; link accounts ONLY by GitHub ID or VERIFIED primary email, never fall back to unverified emails.
 - [ ] 6. **DB pool hardening** — add `pool.on('error')` handler, enable TLS verification, run migrations at server startup.
 - [ ] 7. **XSS escaping** — add `escapeHtml` helper, apply to every API/user-controlled value interpolated into `innerHTML` in `dashboard.ts`; add a test with XSS payload and `std::vector<int>`.
 
