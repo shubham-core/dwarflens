@@ -260,6 +260,7 @@ export class DashboardApp {
           Continue with GitHub
         </a>
 
+        ${import.meta.env.DEV ? `
         <div style="display: flex; align-items: center; margin: 1.5rem 0; color: var(--text-muted); font-size: 0.8rem;">
           <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
           <span style="padding: 0 0.75rem;">OR QUICK DEV LOGIN</span>
@@ -277,21 +278,24 @@ export class DashboardApp {
           </div>
           <button type="submit" class="btn btn-secondary" style="margin-top: 0.5rem; padding: 0.6rem;">Sign In (Local Dev)</button>
         </form>
+        ` : ''}
       </div>
     `;
 
-    document.getElementById('dev-login-form')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = (document.getElementById('dev-email') as HTMLInputElement).value;
-      const orgName = (document.getElementById('dev-org') as HTMLInputElement).value;
-      try {
-        await api.devLogin(email, email.split('@')[0], orgName);
-        await this.checkAuth();
-        window.location.hash = '#projects';
-      } catch (err: any) {
-        alert('Login failed: ' + err.message);
-      }
-    });
+    if (import.meta.env.DEV) {
+      document.getElementById('dev-login-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = (document.getElementById('dev-email') as HTMLInputElement).value;
+        const orgName = (document.getElementById('dev-org') as HTMLInputElement).value;
+        try {
+          await api.devLogin(email, email.split('@')[0], orgName);
+          await this.checkAuth();
+          window.location.hash = '#projects';
+        } catch (err: any) {
+          alert('Login failed: ' + err.message);
+        }
+      });
+    }
   }
 
   async renderProjectsView(): Promise<void> {
