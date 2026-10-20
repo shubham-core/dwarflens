@@ -32,7 +32,7 @@
 
 ### P0 — Money and Takeover (do first)
 - [x] 1. **CORS allowlist** — replace origin-reflection with an allowlist from APP_URL (+ localhost in dev); keep `credentials` only for allowlisted origins.
-- [ ] 2. **Billing webhook signature** — verify Stripe HMAC-SHA256 (`t.payload`, `STRIPE_WEBHOOK_SECRET`, 5-minute tolerance, constant-time compare); reject unsigned requests; look up org via stored `stripe_customer_id`, never trust `org_id` from body.
+- [x] 2. **Billing webhook signature** — verify Stripe HMAC-SHA256 (`t.payload`, `STRIPE_WEBHOOK_SECRET`, 5-minute tolerance, constant-time compare); reject unsigned requests; look up org via stored `stripe_customer_id`, never trust `org_id` from body.
 - [ ] 3. **Retention cron guard** — require `CRON_SECRET` header (constant-time), add a scheduled GitHub Actions workflow calling it daily.
 - [x] 4. **Dev login hardening** — only enabled in `NODE_ENV==='development'`; fail startup in production if `SESSION_SECRET` or `DATABASE_URL` use defaults; hide Quick Dev Login form from production web build (show only when `import.meta.env.DEV`).
 - [ ] 5. **GitHub OAuth state cookie** — store `state` in a short-lived httpOnly cookie, verify in callback; link accounts ONLY by GitHub ID or VERIFIED primary email, never fall back to unverified emails.
