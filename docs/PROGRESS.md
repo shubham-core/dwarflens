@@ -43,7 +43,7 @@
 - [x] 8. **Stripe Checkout** — add `line_items` with price IDs from env, create/store `stripe_customer_id` and subscription ID on orgs (new migration), put `org_id` in `subscription_data[metadata]`, handle `customer.subscription.updated/deleted` and `invoice.payment_failed`, make portal use stored customer, make `getSubscription` read real state; validate success/cancel/return URLs against `APP_URL`.
 - [x] 9. **Frontend billing UI** — Upgrade buttons on pricing section, Billing page in dashboard (current plan, usage, Upgrade, Manage subscription).
 - [x] 10. **Enforce plan limits server-side** — alerts only on paid plans, private repos on paid plans, history retention per plan; return `null` limits as the string `"unlimited"` instead of `Infinity`.
-- [ ] 11. **Payment abstraction** — abstract billing behind existing interface; implement Razorpay or Lemon Squeezy if Stripe unavailable (user choice).
+- [x] 11. **Payment abstraction** — abstract billing behind existing interface; implement Razorpay or Lemon Squeezy if Stripe unavailable (user choice).
 
 ### P2 — Permissions and Abuse
 - [ ] 12. **API key scopes** — add `ingest:write` scope by default; CI keys must NOT manage members/keys/billing/delete projects/change budgets; enforce project-scoped keys on every route.
