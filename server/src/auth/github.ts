@@ -40,6 +40,7 @@ export async function exchangeGitHubCode(code: string): Promise<string> {
 export async function getGitHubUserProfile(accessToken: string): Promise<{
   githubId: string;
   email: string;
+  emailVerified: boolean;
   name: string;
   avatarUrl: string;
 }> {
@@ -62,9 +63,11 @@ export async function getGitHubUserProfile(accessToken: string): Promise<{
     avatar_url?: string;
   };
 
-  let email = profile.email;
-  if (!email) {
-    // Fetch user emails
+  let email = profile.email || '';
+  let emailVerified = false;
+
+  // Always fetch emails to determine verified primary email
+  try {
     const emailsRes = await fetch('https://api.github.com/user/emails', {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -77,16 +80,31 @@ export async function getGitHubUserProfile(accessToken: string): Promise<{
         primary: boolean;
         verified: boolean;
       }>;
-      const primary = emails.find((e) => e.primary && e.verified) || emails[0];
-      if (primary) {
-        email = primary.email;
+      const verifiedPrimary = emails.find((e) => e.primary && e.verified);
+      if (verifiedPrimary) {
+        email = verifiedPrimary.email;
+        emailVerified = true;
+      } else {
+        const anyVerified = emails.find((e) => e.verified);
+        if (anyVerified) {
+          email = anyVerified.email;
+          emailVerified = true;
+        }
       }
     }
+  } catch (err) {
+    console.warn('Failed to fetch GitHub user emails:', err);
+  }
+
+  if (!email) {
+    email = `${profile.login}@users.noreply.github.com`;
+    emailVerified = false;
   }
 
   return {
     githubId: String(profile.id),
-    email: email || `${profile.login}@users.noreply.github.com`,
+    email,
+    emailVerified,
     name: profile.name || profile.login,
     avatarUrl: profile.avatar_url || '',
   };
