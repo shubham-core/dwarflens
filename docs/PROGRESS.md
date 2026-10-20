@@ -61,7 +61,7 @@
 - [x] 20. **Action injection safety** — never interpolate `${{ }}` in `run:` scripts; pass all inputs and GitHub context through `env:` and reference `"$VAR"` in bash.
 - [x] 21. **Binary download** — download pinned release binary with SHA256 check or build from `${{ github.action_path }}/..`; honor `dwarflens-version`.
 - [x] 22. **Job failure handling** — use `if: always()` / `continue-on-error` so upload and PR comment run even when thresholds fail; fail job at end; make PR comment non-fatal for fork PRs; document `permissions: pull-requests: write`. *(Commit: `a959fb4`)*
-- [ ] 23. **Fix macos runner and tag v0.1.0** — fix or replace macos-13 runner in `release.yml`, create first tag `v0.1.0`.
+- [x] 23. **Fix macos runner and tag v0.1.0** — fix or replace macos-13 runner in `release.yml`, create first tag `v0.1.0`. *(Commit: `fc3d55e`, Tag: `v0.1.0`)*
 
 ### P5 — Hygiene
 - [ ] 24. **Cleanup** — remove `web/dist` from git, fix double-slash in `#shared/`, normalize `APP_URL`, set `NODE_ENV=production` explicitly in Render config, add GitHub branch rule requiring CI before merge.
