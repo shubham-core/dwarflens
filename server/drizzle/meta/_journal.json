@@ -15,6 +15,13 @@
       "when": 1792433207892,
       "tag": "0001_military_azazel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792482772255,
+      "tag": "0002_goofy_yellowjacket",
+      "breakpoints": true
     }
   ]
 }

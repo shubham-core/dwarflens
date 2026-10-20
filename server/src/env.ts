@@ -29,6 +29,8 @@ export const envSchema = z.object({
   API_URL: z.string().url().default(process.env.RENDER_EXTERNAL_URL || (process.env.NODE_ENV === 'production' ? 'https://dwarflens.onrender.com' : 'http://localhost:3000')),
   RESEND_API_KEY: z.string().optional().default(''),
   DEV_LOGIN_ENABLED: z.string().optional().default('false'),
+  STRIPE_WEBHOOK_SECRET: z.string().optional().default(''),
+  CRON_SECRET: z.string().optional().default(''),
 });
 
 export const env = envSchema.parse(process.env);

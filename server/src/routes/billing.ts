@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
+import crypto from 'crypto';
 import { eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { orgs, projects, analyses } from '../db/schema.js';
+import { env } from '../env.js';
 import { AuthContextVariables, requireAuth } from '../middleware/auth.js';
 import { resolveOrg } from '../middleware/org.js';
 import { getBillingProvider } from '../billing/provider.js';
@@ -111,9 +113,66 @@ billingRouter.post('/orgs/:orgId/billing/portal', requireAuth, resolveOrg('owner
 // ---------------------------------------------------------------------------
 // 4. Webhook Handler
 // ---------------------------------------------------------------------------
+export function verifyStripeSignature(rawPayload: string, signatureHeader: string, secret: string): void {
+  if (!signatureHeader) {
+    throw new Error('Missing stripe-signature header');
+  }
+
+  const parts = signatureHeader.split(',').reduce((acc, part) => {
+    const eqIdx = part.indexOf('=');
+    if (eqIdx !== -1) {
+      const k = part.substring(0, eqIdx).trim();
+      const v = part.substring(eqIdx + 1).trim();
+      if (k === 't') acc.t = v;
+      if (k === 'v1') acc.v1.push(v);
+    }
+    return acc;
+  }, { t: '', v1: [] as string[] });
+
+  if (!parts.t || parts.v1.length === 0) {
+    throw new Error('Invalid stripe-signature format');
+  }
+
+  const timestamp = parseInt(parts.t, 10);
+  const now = Math.floor(Date.now() / 1000);
+  if (isNaN(timestamp) || Math.abs(now - timestamp) > 300) {
+    throw new Error('Webhook timestamp outside tolerance zone (300s)');
+  }
+
+  const signedPayload = `${parts.t}.${rawPayload}`;
+  const expectedHmac = crypto
+    .createHmac('sha256', secret)
+    .update(signedPayload, 'utf8')
+    .digest('hex');
+
+  const expectedBuf = Buffer.from(expectedHmac, 'utf8');
+  let matched = false;
+  for (const sig of parts.v1) {
+    const sigBuf = Buffer.from(sig, 'utf8');
+    if (sigBuf.length === expectedBuf.length && crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+      matched = true;
+      break;
+    }
+  }
+
+  if (!matched) {
+    throw new Error('Invalid webhook signature');
+  }
+}
+
 billingRouter.post('/billing/webhook', async (c) => {
   const payload = await c.req.text();
   const signature = c.req.header('stripe-signature') || '';
+
+  if (env.STRIPE_WEBHOOK_SECRET) {
+    try {
+      verifyStripeSignature(payload, signature, env.STRIPE_WEBHOOK_SECRET);
+    } catch (err: any) {
+      return c.json({ error: err.message }, 400);
+    }
+  } else {
+    console.warn('[Billing Webhook] STRIPE_WEBHOOK_SECRET is not set; skipping signature verification');
+  }
 
   const provider = getBillingProvider();
   try {
