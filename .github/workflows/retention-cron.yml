@@ -1,0 +1,22 @@
+name: Scheduled Data Retention Cleanup
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retention-cleanup:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Trigger Retention Cleanup
+        env:
+          API_URL: ${{ secrets.API_URL || 'https://dwarflens.onrender.com' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -f -s -S -X POST "$API_URL/api/v1/billing/retention" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json"

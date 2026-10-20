@@ -187,6 +187,22 @@ billingRouter.post('/billing/webhook', async (c) => {
 // 5. Retention Cleanup Endpoint (Internal / Cron trigger)
 // ---------------------------------------------------------------------------
 billingRouter.post('/billing/retention', async (c) => {
+  if (env.CRON_SECRET) {
+    const authHeader = c.req.header('authorization') || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized: missing or invalid Authorization header' }, 401);
+    }
+    const token = authHeader.substring(7).trim();
+    const tokenBuf = Buffer.from(token, 'utf8');
+    const secretBuf = Buffer.from(env.CRON_SECRET, 'utf8');
+
+    if (tokenBuf.length !== secretBuf.length || !crypto.timingSafeEqual(tokenBuf, secretBuf)) {
+      return c.json({ error: 'Unauthorized: invalid cron secret' }, 401);
+    }
+  } else {
+    console.warn('[Billing Retention] CRON_SECRET is not set; running without authentication');
+  }
+
   const report = await runRetentionCleanup();
   return c.json({ status: 'completed', report });
 });
