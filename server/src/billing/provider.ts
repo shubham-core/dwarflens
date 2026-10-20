@@ -271,7 +271,21 @@ export class StripeBillingProvider implements BillingProvider {
   }
 }
 
-let activeProvider: BillingProvider = new StripeBillingProvider();
+import { LemonSqueezyBillingProvider } from './lemonSqueezy.js';
+import { RazorpayBillingProvider } from './razorpay.js';
+
+function createDefaultBillingProvider(): BillingProvider {
+  const provider = (process.env.BILLING_PROVIDER || 'stripe').toLowerCase();
+  if (provider === 'lemonsqueezy' || provider === 'lemon_squeezy') {
+    return new LemonSqueezyBillingProvider();
+  }
+  if (provider === 'razorpay') {
+    return new RazorpayBillingProvider();
+  }
+  return new StripeBillingProvider();
+}
+
+let activeProvider: BillingProvider = createDefaultBillingProvider();
 
 export function getBillingProvider(): BillingProvider {
   return activeProvider;
