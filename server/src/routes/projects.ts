@@ -7,6 +7,20 @@ import { resolveOrg } from '../middleware/org.js';
 import { createApiKey } from '../auth/keys.js';
 import { PLAN_LIMITS, PlanType } from '../billing/types.js';
 
+export function sanitizeProject<T extends { settings?: any }>(project: T, isViewer: boolean): T {
+  if (!project || !project.settings) return project;
+  const settings = { ...project.settings };
+  if (settings.alerts) {
+    const alerts = { ...settings.alerts };
+    alerts.has_slack_webhook = Boolean(alerts.slack_webhook_url);
+    if (isViewer) {
+      delete alerts.slack_webhook_url;
+    }
+    settings.alerts = alerts;
+  }
+  return { ...project, settings };
+}
+
 export const projectsRouter = new Hono<{ Variables: AuthContextVariables }>();
 
 // ---------------------------------------------------------------------------
@@ -28,6 +42,7 @@ projectsRouter.get('/projects/:id', requireAuth, async (c) => {
   }
 
   // Tenant Isolation Check
+  let isViewer = false;
   if (apiKey) {
     if (apiKey.orgId !== project.orgId) {
       return c.json({ error: 'Forbidden: API key does not belong to this project organization' }, 403);
@@ -37,7 +52,7 @@ projectsRouter.get('/projects/:id', requireAuth, async (c) => {
     }
   } else if (user) {
     const [membership] = await db
-      .select()
+      .select({ role: orgMembers.role })
       .from(orgMembers)
       .where(and(eq(orgMembers.orgId, project.orgId), eq(orgMembers.userId, user.id)))
       .limit(1);
@@ -45,9 +60,10 @@ projectsRouter.get('/projects/:id', requireAuth, async (c) => {
     if (!membership) {
       return c.json({ error: 'Forbidden: You do not have access to this project' }, 403);
     }
+    isViewer = membership.role === 'viewer';
   }
 
-  return c.json({ project });
+  return c.json({ project: sanitizeProject(project, isViewer) });
 });
 
 // Delete Project (Owner only)
@@ -195,13 +211,43 @@ projectsRouter.put('/projects/:id/alerts', requireAuth, async (c) => {
 
   const { slack_webhook_url, email } = await c.req.json();
 
+  if (slack_webhook_url !== undefined && slack_webhook_url !== null && slack_webhook_url !== '') {
+    const slackUrlStr = String(slack_webhook_url);
+    const slackRegex = /^https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9+/_-]+$/;
+    if (!slackRegex.test(slackUrlStr)) {
+      return c.json({ error: 'Invalid Slack webhook URL. Must begin with https://hooks.slack.com/services/' }, 400);
+    }
+  }
+
+  if (email !== undefined && email !== null && email !== '') {
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const [memberUser] = await db
+      .select({ id: users.id, emailVerified: users.emailVerified })
+      .from(orgMembers)
+      .innerJoin(users, eq(orgMembers.userId, users.id))
+      .where(and(eq(orgMembers.orgId, project.orgId), eq(users.email, normalizedEmail)))
+      .limit(1);
+
+    if (!memberUser) {
+      return c.json({ error: 'Forbidden: Alert email must belong to an organization member' }, 400);
+    }
+    if (!memberUser.emailVerified) {
+      return c.json({ error: 'Forbidden: Organization member email must be verified to receive alerts' }, 400);
+    }
+  }
+
   const currentSettings = (project.settings as Record<string, any>) || {};
+  const currentAlerts = (currentSettings.alerts as Record<string, any>) || {};
+  const alerts = {
+    ...currentAlerts,
+    ...(slack_webhook_url !== undefined ? { slack_webhook_url: slack_webhook_url ? String(slack_webhook_url) : undefined } : {}),
+    ...(email !== undefined ? { email: email ? String(email) : undefined } : {}),
+  };
+  const hasSlackWebhook = Boolean(alerts.slack_webhook_url);
+
   const updatedSettings = {
     ...currentSettings,
-    alerts: {
-      slack_webhook_url: slack_webhook_url ? String(slack_webhook_url) : undefined,
-      email: email ? String(email) : undefined,
-    },
+    alerts,
   };
 
   const [updated] = await db
@@ -213,7 +259,13 @@ projectsRouter.put('/projects/:id/alerts', requireAuth, async (c) => {
     .where(eq(projects.id, projectId))
     .returning();
 
-  return c.json({ project: updated, alerts: updatedSettings.alerts });
+  return c.json({
+    project: sanitizeProject(updated, false),
+    alerts: {
+      ...alerts,
+      has_slack_webhook: hasSlackWebhook,
+    },
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -225,6 +277,8 @@ export const orgRouter = new Hono<{ Variables: AuthContextVariables }>();
 orgRouter.get('/orgs/:orgId/projects', requireAuth, resolveOrg('viewer'), async (c) => {
   const orgId = c.get('orgId')!;
   const apiKey = c.get('apiKey');
+  const orgRole = c.get('orgRole');
+  const isViewer = orgRole === 'viewer';
 
   const conditions = [eq(projects.orgId, orgId)];
   if (apiKey?.projectId) {
@@ -236,7 +290,7 @@ orgRouter.get('/orgs/:orgId/projects', requireAuth, resolveOrg('viewer'), async 
     .from(projects)
     .where(and(...conditions));
 
-  return c.json({ projects: list });
+  return c.json({ projects: list.map((p) => sanitizeProject(p, isViewer)) });
 });
 
 // Create project in Org
