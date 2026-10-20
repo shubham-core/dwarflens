@@ -46,7 +46,8 @@ export async function sendBudgetAlerts(params: AlertNotificationParams): Promise
 
   // 1. Slack incoming webhook notification
   const slackUrl = alertSettings?.slack_webhook_url;
-  if (slackUrl && typeof slackUrl === 'string' && slackUrl.startsWith('http')) {
+  const slackRegex = /^https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9+/_-]+$/;
+  if (slackUrl && typeof slackUrl === 'string' && slackRegex.test(slackUrl)) {
     try {
       const slackPayload = {
         text: `🚨 *DwarfLens Budget Violation Detected*\n*Project:* ${project.name} (\`${project.repo}\`)\n*Branch:* \`${analysis.branch}\`\n*Commit:* \`${analysis.commitSha.slice(0, 7)}\`\n*Build:* ${analysis.buildName}\n*Violations:*\n${reasons.map((r) => `• ${r}`).join('\n')}`,
@@ -68,21 +69,34 @@ export async function sendBudgetAlerts(params: AlertNotificationParams): Promise
     }
   }
 
-  // 2. Resend email alert
+  // 2. Resend email alert (only send to verified org members)
   const resendApiKey = env.RESEND_API_KEY;
   if (resendApiKey) {
     try {
       let recipientEmail = alertSettings?.email;
       if (!recipientEmail) {
-        // Query org owner's email address
+        // Query org owner's email address (only verified)
         const [ownerMembership] = await db
           .select({ email: users.email })
           .from(orgMembers)
           .innerJoin(users, eq(orgMembers.userId, users.id))
-          .where(and(eq(orgMembers.orgId, project.orgId), eq(orgMembers.role, 'owner')))
+          .where(and(eq(orgMembers.orgId, project.orgId), eq(orgMembers.role, 'owner'), eq(users.emailVerified, true)))
           .limit(1);
 
         recipientEmail = ownerMembership?.email;
+      } else {
+        // Custom email must belong to a verified org member
+        const [verifiedMember] = await db
+          .select({ email: users.email })
+          .from(orgMembers)
+          .innerJoin(users, eq(orgMembers.userId, users.id))
+          .where(and(eq(orgMembers.orgId, project.orgId), eq(users.email, recipientEmail), eq(users.emailVerified, true)))
+          .limit(1);
+
+        if (!verifiedMember) {
+          result.errors.push(`Skipped email alert: ${recipientEmail} is not a verified organization member`);
+          recipientEmail = undefined;
+        }
       }
 
       if (recipientEmail) {
