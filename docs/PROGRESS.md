@@ -46,7 +46,7 @@
 - [x] 11. **Payment abstraction** — abstract billing behind existing interface; implement Razorpay or Lemon Squeezy if Stripe unavailable (user choice).
 
 ### P2 — Permissions and Abuse
-- [ ] 12. **API key scopes** — add `ingest:write` scope by default; CI keys must NOT manage members/keys/billing/delete projects/change budgets; enforce project-scoped keys on every route.
+- [x] 12. **API key scopes** — add `ingest:write` scope by default; CI keys must NOT manage members/keys/billing/delete projects/change budgets; enforce project-scoped keys on every route.
 - [ ] 13. **Alert hardening** — allow `slack_webhook_url` only for `https://hooks.slack.com/services/*`; only send alert emails to verified org members; hide webhook URLs from viewers (return `has_slack_webhook` boolean).
 - [ ] 14. **Pending invitations** — create invitation with token, email it, add user only after they accept while logged in with a verified email.
 - [ ] 15. **Input validation** — validate all route params as UUIDs (400 on bad input), wrap `c.req.json()` in safe parsing, add `app.onError` returning generic 500 JSON, enforce 5 MB body limit via middleware.
