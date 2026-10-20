@@ -64,7 +64,7 @@
 - [x] 23. **Fix macos runner and tag v0.1.0** — fix or replace macos-13 runner in `release.yml`, create first tag `v0.1.0`. *(Commit: `fc3d55e`, Tag: `v0.1.0`)*
 
 ### P5 — Hygiene
-- [ ] 24. **Cleanup** — remove `web/dist` from git, fix double-slash in `#shared/`, normalize `APP_URL`, set `NODE_ENV=production` explicitly in Render config, add GitHub branch rule requiring CI before merge.
+- [x] 24. **Cleanup** — remove `web/dist` from git, fix double-slash in `#shared/`, normalize `APP_URL`, set `NODE_ENV=production` explicitly in Render config, add GitHub branch rule requiring CI before merge. *(Commit: `0698e50`)*
 - [ ] 25. **Regression tests and security docs** — add regression tests for all items above, and `docs/SECURITY.md`.
 
 ---
