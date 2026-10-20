@@ -66,11 +66,9 @@ projectsRouter.delete('/projects/:id', requireAuth, async (c) => {
     return c.json({ error: 'Project not found' }, 404);
   }
 
-  // Authorization check (Only owner can delete project)
+  // Authorization check (Only human organization owners can delete projects; API keys forbidden)
   if (apiKey) {
-    if (apiKey.orgId !== project.orgId) {
-      return c.json({ error: 'Forbidden' }, 403);
-    }
+    return c.json({ error: 'Forbidden: API keys cannot delete projects' }, 403);
   } else if (user) {
     const [membership] = await db
       .select()
@@ -105,11 +103,9 @@ projectsRouter.put('/projects/:id/budgets', requireAuth, async (c) => {
     return c.json({ error: 'Project not found' }, 404);
   }
 
-  // Authorization check (must be member or owner)
+  // Authorization check (must be human member or owner; API keys forbidden)
   if (apiKey) {
-    if (apiKey.orgId !== project.orgId) {
-      return c.json({ error: 'Forbidden' }, 403);
-    }
+    return c.json({ error: 'Forbidden: API keys cannot modify budgets' }, 403);
   } else if (user) {
     const [membership] = await db
       .select()
@@ -162,11 +158,9 @@ projectsRouter.put('/projects/:id/alerts', requireAuth, async (c) => {
     return c.json({ error: 'Project not found' }, 404);
   }
 
-  // Authorization check (must be member or owner)
+  // Authorization check (must be human member or owner; API keys forbidden)
   if (apiKey) {
-    if (apiKey.orgId !== project.orgId) {
-      return c.json({ error: 'Forbidden' }, 403);
-    }
+    return c.json({ error: 'Forbidden: API keys cannot modify alert settings' }, 403);
   } else if (user) {
     const [membership] = await db
       .select()
@@ -230,17 +224,28 @@ export const orgRouter = new Hono<{ Variables: AuthContextVariables }>();
 // List projects in Org
 orgRouter.get('/orgs/:orgId/projects', requireAuth, resolveOrg('viewer'), async (c) => {
   const orgId = c.get('orgId')!;
+  const apiKey = c.get('apiKey');
+
+  const conditions = [eq(projects.orgId, orgId)];
+  if (apiKey?.projectId) {
+    conditions.push(eq(projects.id, apiKey.projectId));
+  }
 
   const list = await db
     .select()
     .from(projects)
-    .where(eq(projects.orgId, orgId));
+    .where(and(...conditions));
 
   return c.json({ projects: list });
 });
 
 // Create project in Org
 orgRouter.post('/orgs/:orgId/projects', requireAuth, resolveOrg('member'), async (c) => {
+  const apiKey = c.get('apiKey');
+  if (apiKey) {
+    return c.json({ error: 'Forbidden: API keys cannot create projects' }, 403);
+  }
+
   const orgId = c.get('orgId')!;
   const body = await c.req.json();
   const { name, slug, repo, is_private, settings } = body;
@@ -317,7 +322,7 @@ orgRouter.post('/orgs/:orgId/projects', requireAuth, resolveOrg('member'), async
 // Create API key in Org
 orgRouter.post('/orgs/:orgId/keys', requireAuth, resolveOrg('owner'), async (c) => {
   const orgId = c.get('orgId')!;
-  const { name, projectId } = await c.req.json();
+  const { name, projectId, scopes } = await c.req.json();
 
   if (!name) {
     return c.json({ error: 'Key name is required' }, 400);
@@ -340,6 +345,7 @@ orgRouter.post('/orgs/:orgId/keys', requireAuth, resolveOrg('owner'), async (c) 
     orgId,
     projectId,
     name,
+    scopes,
   });
 
   return c.json({
@@ -348,6 +354,7 @@ orgRouter.post('/orgs/:orgId/keys', requireAuth, resolveOrg('owner'), async (c) 
       name: apiKey.name,
       prefix: apiKey.prefix,
       projectId: apiKey.projectId,
+      scopes: apiKey.scopes,
       createdAt: apiKey.createdAt,
     },
     // Returned ONLY ONCE upon creation
@@ -365,6 +372,7 @@ orgRouter.get('/orgs/:orgId/keys', requireAuth, resolveOrg('owner'), async (c) =
       name: apiKeys.name,
       prefix: apiKeys.prefix,
       projectId: apiKeys.projectId,
+      scopes: apiKeys.scopes,
       lastUsedAt: apiKeys.lastUsedAt,
       revokedAt: apiKeys.revokedAt,
       createdAt: apiKeys.createdAt,
