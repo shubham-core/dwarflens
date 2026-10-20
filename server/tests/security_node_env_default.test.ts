@@ -7,7 +7,7 @@ describe('R3: Safe Default NODE_ENV=production & Localhost Dev-Login Enforcement
   it('defaults NODE_ENV to production when unset, and sets production APP_URL/API_URL', () => {
     const parsed = envSchema.parse({});
     expect(parsed.NODE_ENV).toBe('production');
-    expect(parsed.APP_URL).toBe('https://shubham-core.github.io/dwarflens/');
+    expect(parsed.APP_URL).toBe('https://shubham-core.github.io/dwarflens');
     expect(parsed.API_URL).toBe('https://dwarflens.onrender.com');
   });
 

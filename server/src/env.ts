@@ -25,8 +25,12 @@ export const envSchema = z.object({
   SESSION_SECRET: z.string().min(16).default('dwarflens-dev-session-secret-at-least-32-chars-long!'),
   GITHUB_CLIENT_ID: z.string().optional().default(''),
   GITHUB_CLIENT_SECRET: z.string().optional().default(''),
-  APP_URL: z.string().url().default(process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : 'https://shubham-core.github.io/dwarflens/'),
-  API_URL: z.string().url().default(process.env.RENDER_EXTERNAL_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://dwarflens.onrender.com')),
+  APP_URL: z.string().url()
+    .default(process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : 'https://shubham-core.github.io/dwarflens')
+    .transform((val) => val.replace(/\/+$/, '')),
+  API_URL: z.string().url()
+    .default(process.env.RENDER_EXTERNAL_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://dwarflens.onrender.com'))
+    .transform((val) => val.replace(/\/+$/, '')),
   RESEND_API_KEY: z.string().optional().default(''),
   DEV_LOGIN_ENABLED: z.string().optional().default('false'),
   STRIPE_SECRET_KEY: z.string().optional().default(''),
