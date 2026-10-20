@@ -41,6 +41,10 @@ export function resolveOrg(minRole: OrgRole = 'viewer') {
 
     // 1. API Key Auth
     if (apiKey) {
+      if (minRole === 'owner') {
+        return c.json({ error: 'Forbidden: API keys cannot perform owner actions' }, 403);
+      }
+
       // If a specific org was requested, verify it matches the API key's org
       if (targetOrgId && targetOrgId !== apiKey.orgId) {
         return c.json({ error: 'Forbidden: API key is not valid for this organization' }, 403);
@@ -52,7 +56,7 @@ export function resolveOrg(minRole: OrgRole = 'viewer') {
       }
 
       c.set('orgId', apiKey.orgId);
-      c.set('orgRole', 'owner'); // API key operates with owner permissions inside its org
+      c.set('orgRole', 'member');
       return next();
     }
 
