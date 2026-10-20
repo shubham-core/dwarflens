@@ -2,6 +2,7 @@ import { api, API_BASE, User, OrgMembership, Project, AnalysisSummary, DiffResul
 import { renderSizeHistoryChart } from './chart.js';
 import { renderStoredAnalysis, resetResultsToTryView } from './main.js';
 import { renderLandingPage } from './landing.js';
+import { escapeHtml } from './escape.js';
 
 export class DashboardApp {
   user: User | null = null;
@@ -46,7 +47,7 @@ export class DashboardApp {
       if (dashboardLink) dashboardLink.style.display = 'inline-flex';
       authContainer.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.6rem;">
-          <span style="font-size: 0.85rem; color: var(--text-secondary);">${this.user.name || this.user.email}</span>
+          <span style="font-size: 0.85rem; color: var(--text-secondary);">${escapeHtml(this.user.name || this.user.email)}</span>
           <button id="btn-logout" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Logout</button>
           <button id="btn-delete-account" class="btn btn-sm" style="background: transparent; color: var(--danger); border: 1px solid rgba(248,81,73,0.3); padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 4px; cursor: pointer;" title="Delete your DwarfLens account">Delete Account</button>
         </div>
@@ -313,7 +314,7 @@ export class DashboardApp {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
             <div>
               <h2 style="font-size: 1.5rem; font-weight: 700;">Projects</h2>
-              <p style="color: var(--text-secondary); font-size: 0.85rem;">Organization: <strong>${this.currentOrg.orgName}</strong></p>
+              <p style="color: var(--text-secondary); font-size: 0.85rem;">Organization: <strong>${escapeHtml(this.currentOrg.orgName)}</strong></p>
             </div>
             <button id="btn-create-project-modal" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.4rem;">
               <span>+</span> New Project
@@ -342,10 +343,10 @@ export class DashboardApp {
           ` : `
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
               ${projects.map((p) => `
-                <a href="#projects/${p.id}" style="text-decoration: none; color: inherit;">
+                <a href="#projects/${escapeHtml(p.id)}" style="text-decoration: none; color: inherit;">
                   <div style="padding: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
-                    <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem;">${p.name}</div>
-                    <div style="font-size: 0.85rem; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 0.75rem;">${p.repo}</div>
+                    <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem;">${escapeHtml(p.name)}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 0.75rem;">${escapeHtml(p.repo)}</div>
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary);">
                       <span>Created ${new Date(p.createdAt).toLocaleDateString()}</span>
                       <span style="color: var(--accent);">View details &rarr;</span>
@@ -426,7 +427,7 @@ export class DashboardApp {
         }
       });
     } catch (err: any) {
-      el.innerHTML = `<div class="alert alert-error">Failed to load projects: ${err.message}</div>`;
+      el.innerHTML = `<div class="alert alert-error">Failed to load projects: ${escapeHtml(err.message)}</div>`;
     }
   }
 
@@ -454,9 +455,9 @@ export class DashboardApp {
               <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">
                 <a href="#projects" style="color: var(--accent); text-decoration: none;">&larr; Projects</a>
                 <span>/</span>
-                <span>${project.repo}</span>
+                <span>${escapeHtml(project.repo)}</span>
               </div>
-              <h2 style="font-size: 1.6rem; font-weight: 700;">${project.name}</h2>
+              <h2 style="font-size: 1.6rem; font-weight: 700;">${escapeHtml(project.name)}</h2>
             </div>
             <div style="display: flex; gap: 0.75rem; align-items: center;">
               <button id="btn-compare-selected" class="btn btn-primary btn-sm" disabled style="opacity: 0.6;">
@@ -472,7 +473,7 @@ export class DashboardApp {
               <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <label style="font-size: 0.8rem; color: var(--text-secondary);">Branch:</label>
                 <select id="branch-filter-select" style="padding: 0.35rem 0.6rem; background: var(--code-bg); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px; font-size: 0.85rem;">
-                  ${branches.map((b) => `<option value="${b}">${b}</option>`).join('')}
+                  ${branches.map((b) => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('')}
                 </select>
               </div>
             </div>
@@ -507,13 +508,13 @@ export class DashboardApp {
                     ${analyses.map((a) => `
                       <tr style="border-bottom: 1px solid var(--border-color);">
                         <td style="padding: 0.75rem 1rem;">
-                          <input type="checkbox" class="analysis-compare-cb" data-id="${a.id}" data-commit="${a.commitSha}" />
+                          <input type="checkbox" class="analysis-compare-cb" data-id="${escapeHtml(a.id)}" data-commit="${escapeHtml(a.commitSha)}" />
                         </td>
                         <td style="padding: 0.75rem 1rem;">
-                          <div style="font-family: var(--font-mono); font-weight: 600; color: var(--accent);">${a.commitSha.substring(0, 7)}</div>
-                          <div style="font-size: 0.75rem; color: var(--text-muted);">${a.branch}</div>
+                          <div style="font-family: var(--font-mono); font-weight: 600; color: var(--accent);">${escapeHtml(a.commitSha.substring(0, 7))}</div>
+                          <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(a.branch)}</div>
                         </td>
-                        <td style="padding: 0.75rem 1rem;"><span class="badge" style="background: var(--bg-tertiary);">${a.buildName}</span></td>
+                        <td style="padding: 0.75rem 1rem;"><span class="badge" style="background: var(--bg-tertiary);">${escapeHtml(a.buildName)}</span></td>
                         <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600;">${(a.totalSize / 1024).toFixed(1)} KB</td>
                         <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary);">
                           F: ${(a.flashSize / 1024).toFixed(1)} KB<br>R: ${(a.ramSize / 1024).toFixed(1)} KB
@@ -523,7 +524,7 @@ export class DashboardApp {
                         </td>
                         <td style="padding: 0.75rem 1rem; color: var(--text-secondary);">${new Date(a.createdAt).toLocaleString()}</td>
                         <td style="padding: 0.75rem 1rem; text-align: right;">
-                          <a href="#analyses/${a.id}" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; text-decoration: none;">View Detail</a>
+                          <a href="#analyses/${escapeHtml(a.id)}" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; text-decoration: none;">View Detail</a>
                         </td>
                       </tr>
                     `).join('')}
@@ -613,7 +614,7 @@ export class DashboardApp {
         }
       });
     } catch (err: any) {
-      el.innerHTML = `<div class="alert alert-error">Failed to load project: ${err.message}</div>`;
+      el.innerHTML = `<div class="alert alert-error">Failed to load project: ${escapeHtml(err.message)}</div>`;
     }
   }
 
@@ -633,12 +634,12 @@ export class DashboardApp {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
             <div>
               <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">
-                <a href="#projects/${stored.projectId}" style="color: var(--accent); text-decoration: none;">&larr; Back to Project</a>
+                <a href="#projects/${escapeHtml(stored.projectId)}" style="color: var(--accent); text-decoration: none;">&larr; Back to Project</a>
                 <span>/</span>
-                <span>Commit: <strong class="mono">${stored.commitSha.substring(0, 7)}</strong></span>
-                <span>(${stored.branch})</span>
+                <span>Commit: <strong class="mono">${escapeHtml(stored.commitSha.substring(0, 7))}</strong></span>
+                <span>(${escapeHtml(stored.branch)})</span>
               </div>
-              <h2 style="font-size: 1.5rem; font-weight: 700;">Stored Analysis: ${rawData.filename}</h2>
+              <h2 style="font-size: 1.5rem; font-weight: 700;">Stored Analysis: ${escapeHtml(rawData.filename)}</h2>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
               <button id="btn-share-analysis" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.3rem;">
@@ -686,7 +687,7 @@ export class DashboardApp {
         }
       });
     } catch (err: any) {
-      el.innerHTML = `<div class="alert alert-error">Failed to load analysis: ${err.message}</div>`;
+      el.innerHTML = `<div class="alert alert-error">Failed to load analysis: ${escapeHtml(err.message)}</div>`;
     }
   }
 
@@ -706,7 +707,7 @@ export class DashboardApp {
           <div style="background: rgba(56, 139, 253, 0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 0.75rem 1.25rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
             <div>
               <span style="font-weight: 700; color: var(--accent);">🌐 Public Read-Only Report</span>
-              <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">Project: <strong>${res.project.name}</strong> (${res.project.repo})</span>
+              <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">Project: <strong>${escapeHtml(res.project.name)}</strong> (${escapeHtml(res.project.repo)})</span>
             </div>
             <div style="font-size: 0.8rem; color: var(--text-secondary);">
               Shared on ${new Date(res.shared_at).toLocaleDateString()}
@@ -714,9 +715,9 @@ export class DashboardApp {
           </div>
 
           <div style="margin-bottom: 1.25rem;">
-            <h2 style="font-size: 1.5rem; font-weight: 700;">${rawData.filename}</h2>
+            <h2 style="font-size: 1.5rem; font-weight: 700;">${escapeHtml(rawData.filename)}</h2>
             <div style="font-size: 0.85rem; color: var(--text-secondary); font-family: var(--font-mono); margin-top: 0.25rem;">
-              Commit: <strong>${res.analysis.commitSha.substring(0, 7)}</strong> &bull; Branch: <strong>${res.analysis.branch}</strong>
+              Commit: <strong>${escapeHtml(res.analysis.commitSha.substring(0, 7))}</strong> &bull; Branch: <strong>${escapeHtml(res.analysis.branch)}</strong>
             </div>
           </div>
 
@@ -730,7 +731,7 @@ export class DashboardApp {
         renderStoredAnalysis(mount, rawData);
       }
     } catch (err: any) {
-      el.innerHTML = `<div class="alert alert-error">Shared report not found or has been revoked: ${err.message}</div>`;
+      el.innerHTML = `<div class="alert alert-error">Shared report not found or has been revoked: ${escapeHtml(err.message)}</div>`;
     }
   }
 
@@ -760,10 +761,10 @@ export class DashboardApp {
       el.innerHTML = `
         <div style="max-width: 1100px; margin: 2rem auto; padding: 0 1rem;">
           <div style="margin-bottom: 1.5rem;">
-            <a href="#projects/${projectId}" style="color: var(--accent); text-decoration: none; font-size: 0.85rem;">&larr; Back to Project</a>
+            <a href="#projects/${escapeHtml(projectId)}" style="color: var(--accent); text-decoration: none; font-size: 0.85rem;">&larr; Back to Project</a>
             <h2 style="font-size: 1.6rem; font-weight: 700; margin-top: 0.5rem;">Binary Size & Layout Comparison</h2>
             <div style="font-size: 0.85rem; color: var(--text-secondary); font-family: var(--font-mono); margin-top: 0.25rem;">
-              Base: <strong>${diff.base_commit.substring(0, 7)}</strong> &rarr; Head: <strong>${diff.head_commit.substring(0, 7)}</strong>
+              Base: <strong>${escapeHtml(diff.base_commit.substring(0, 7))}</strong> &rarr; Head: <strong>${escapeHtml(diff.head_commit.substring(0, 7))}</strong>
             </div>
           </div>
 
@@ -821,8 +822,8 @@ export class DashboardApp {
               <tbody>
                 ${diff.section_deltas.map((s) => `
                   <tr style="border-bottom: 1px solid var(--border-color);">
-                    <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600;">${s.name}</td>
-                    <td style="padding: 0.75rem 1rem;"><span class="badge" style="background: var(--bg-tertiary);">${s.category}</span></td>
+                    <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600;">${escapeHtml(s.name)}</td>
+                    <td style="padding: 0.75rem 1rem;"><span class="badge" style="background: var(--bg-tertiary);">${escapeHtml(s.category)}</span></td>
                     <td style="padding: 0.75rem 1rem; font-family: var(--font-mono);">${(s.base_size / 1024).toFixed(1)} KB</td>
                     <td style="padding: 0.75rem 1rem; font-family: var(--font-mono);">${(s.head_size / 1024).toFixed(1)} KB</td>
                     <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600; color: ${s.delta > 0 ? 'var(--danger)' : s.delta < 0 ? 'var(--success)' : 'var(--text-muted)'};">
@@ -856,10 +857,10 @@ export class DashboardApp {
                 <tbody>
                   ${diff.top_symbol_deltas.map((sym) => `
                     <tr style="border-bottom: 1px solid var(--border-color);">
-                      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600;">${sym.name}</td>
+                      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600;">${escapeHtml(sym.name)}</td>
                       <td style="padding: 0.75rem 1rem;">
                         <span class="badge" style="background: ${sym.status === 'added' ? 'var(--danger-bg)' : sym.status === 'removed' ? 'var(--success-bg)' : 'var(--bg-tertiary)'}; color: ${sym.status === 'added' ? 'var(--danger)' : sym.status === 'removed' ? 'var(--success)' : 'var(--text-secondary)'};">
-                          ${sym.status}
+                          ${escapeHtml(sym.status)}
                         </span>
                       </td>
                       <td style="padding: 0.75rem 1rem; font-family: var(--font-mono);">${sym.base_size} B</td>
@@ -896,7 +897,7 @@ export class DashboardApp {
                 <tbody>
                   ${diff.struct_regressions.map((st) => `
                     <tr style="border-bottom: 1px solid var(--border-color);">
-                      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600;">${st.name}</td>
+                      <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600;">${escapeHtml(st.name)}</td>
                       <td style="padding: 0.75rem 1rem; font-family: var(--font-mono);">${st.base_padding} B</td>
                       <td style="padding: 0.75rem 1rem; font-family: var(--font-mono);">${st.head_padding} B</td>
                       <td style="padding: 0.75rem 1rem; font-family: var(--font-mono); font-weight: 600; color: ${st.padding_delta > 0 ? 'var(--danger)' : st.padding_delta < 0 ? 'var(--success)' : 'var(--text-muted)'};">
@@ -917,7 +918,7 @@ export class DashboardApp {
         </div>
       `;
     } catch (err: any) {
-      el.innerHTML = `<div class="alert alert-error">Failed to compute comparison: ${err.message}</div>`;
+      el.innerHTML = `<div class="alert alert-error">Failed to compute comparison: ${escapeHtml(err.message)}</div>`;
     }
   }
 }
