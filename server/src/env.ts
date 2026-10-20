@@ -17,7 +17,7 @@ for (const f of envFiles) {
   }
 }
 
-const envSchema = z.object({
+export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
   DATABASE_URL: z.string().url().default('postgresql://postgres:postgres@localhost:5432/dwarflens'),
@@ -33,4 +33,17 @@ const envSchema = z.object({
 
 export const env = envSchema.parse(process.env);
 export type Env = z.infer<typeof envSchema>;
+
+export function validateProductionEnv(e: Env): void {
+  if (e.NODE_ENV === 'production') {
+    if (e.SESSION_SECRET === 'dwarflens-dev-session-secret-at-least-32-chars-long!') {
+      throw new Error('Refusing to start: SESSION_SECRET is using the insecure default value');
+    }
+    if (e.DATABASE_URL === 'postgresql://postgres:postgres@localhost:5432/dwarflens') {
+      throw new Error('Refusing to start: DATABASE_URL is using the localhost default');
+    }
+  }
+}
+
+validateProductionEnv(env);
 

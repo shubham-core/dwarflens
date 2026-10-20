@@ -114,8 +114,8 @@ authRouter.get('/github/callback', async (c) => {
   }
 });
 
-// 3. Dev login for test suites, local development, and preview environments
-if (env.NODE_ENV !== 'production' || env.DEV_LOGIN_ENABLED === 'true') {
+// 3. Dev login for test suites and local development ONLY (never enabled in production)
+if (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') {
   authRouter.post('/dev-login', async (c) => {
     const { email, name, orgName } = await c.req.json();
     if (!email) {
