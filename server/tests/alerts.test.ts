@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { app } from '../src/app.js';
 import { env } from '../src/env.js';
+import { db } from '../src/db/client.js';
+import { orgs } from '../src/db/schema.js';
 
 describe('Project Budget Alerts (Email & Slack)', () => {
   let sessionOwner: string;
@@ -28,6 +31,9 @@ describe('Project Budget Alerts (Email & Slack)', () => {
     });
     const meData = await meRes.json();
     orgId = meData.orgs[0].orgId;
+
+    // Alerts require a paid plan
+    await db.update(orgs).set({ plan: 'pro' }).where(eq(orgs.id, orgId));
 
     // 2. Create Project
     const projRes = await app.request(`/api/v1/orgs/${orgId}/projects`, {

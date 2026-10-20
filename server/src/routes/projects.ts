@@ -179,6 +179,26 @@ projectsRouter.put('/projects/:id/alerts', requireAuth, async (c) => {
     }
   }
 
+  // Check plan limits for alerts
+  const [org] = await db
+    .select({ plan: orgs.plan })
+    .from(orgs)
+    .where(eq(orgs.id, project.orgId))
+    .limit(1);
+
+  const plan = (org?.plan || 'free') as PlanType;
+  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+  if (!limits.allowAlerts) {
+    return c.json(
+      {
+        error: `Alerts are only available on paid plans (Pro or Team). Current plan: ${plan}. Upgrade to Pro to enable alerts.`,
+        plan,
+      },
+      403
+    );
+  }
+
   const { slack_webhook_url, email } = await c.req.json();
 
   const currentSettings = (project.settings as Record<string, any>) || {};
@@ -245,7 +265,7 @@ orgRouter.post('/orgs/:orgId/projects', requireAuth, resolveOrg('member'), async
     .from(projects)
     .where(eq(projects.orgId, orgId));
 
-  if (existingProjects.length >= limits.maxProjects) {
+  if (typeof limits.maxProjects === 'number' && existingProjects.length >= limits.maxProjects) {
     return c.json(
       {
         error: `Plan limit reached: The ${plan} plan allows up to ${limits.maxProjects} project(s). Upgrade to Pro for unlimited projects.`,

@@ -1,9 +1,9 @@
 export type PlanType = 'free' | 'pro' | 'team';
 
 export interface PlanLimits {
-  maxProjects: number;
+  maxProjects: number | 'unlimited';
   allowPrivateRepos: boolean;
-  retentionDays: number;
+  retentionDays: number | 'unlimited';
   allowAlerts: boolean;
 }
 
@@ -15,15 +15,15 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     allowAlerts: false,
   },
   pro: {
-    maxProjects: Infinity,
+    maxProjects: 'unlimited',
     allowPrivateRepos: true,
     retentionDays: 365,
     allowAlerts: true,
   },
   team: {
-    maxProjects: Infinity,
+    maxProjects: 'unlimited',
     allowPrivateRepos: true,
-    retentionDays: Infinity,
+    retentionDays: 'unlimited',
     allowAlerts: true,
   },
 };
