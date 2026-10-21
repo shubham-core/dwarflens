@@ -1,0 +1,58 @@
+# Actions Needed from User / Maintainer
+
+This file documents manual actions, environment variables to configure in production, external provider setups, and database verification items that cannot or should not be automated by CI/CD.
+
+---
+
+## 1. Database Verification (Migration 0006)
+
+* **Context:** Migration `0006_brainy_retro_girl.sql` (creating the `invitations` table) was applied to the Neon PostgreSQL instance.
+* **Action Required:**
+  1. Open your Neon PostgreSQL console / SQL editor.
+  2. Run:
+     ```sql
+     SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 5;
+     ```
+  3. Verify that `0006_brainy_retro_girl` is present and matches `server/drizzle/0006_brainy_retro_girl.sql` in the repository.
+  4. Ensure no further manual migrations are run outside of the automated server startup migration bootstrap (`migrate()` in `server/src/index.ts`).
+
+---
+
+## 2. Production Environment Variables (Render Dashboard)
+
+Configure the following environment variables on the Render web service dashboard under **Settings → Environment**:
+
+### Critical Security Keys
+* `NODE_ENV`: Set explicitly to `production`.
+* `APP_URL`: Set to the canonical frontend origin (e.g., `https://shubham-core.github.io/dwarflens` or your custom domain `https://app.dwarflens.dev`).
+* `API_URL`: Set to the canonical backend API URL (e.g., `https://dwarflens.onrender.com` or `https://api.dwarflens.dev`).
+* `SESSION_SECRET`: Generate a high-entropy 64-character secret (`openssl rand -hex 32`). Refuses to start if left default or under 32 characters.
+* `CRON_SECRET`: Generate a high-entropy 64-character secret (`openssl rand -hex 32`). Must be at least 32 characters.
+
+### GitHub OAuth App
+* `GITHUB_CLIENT_ID`: OAuth App Client ID created in GitHub Developer Settings.
+* `GITHUB_CLIENT_SECRET`: OAuth App Client Secret.
+* **Authorization Callback URL in GitHub Developer Settings:** Must match `${API_URL}/api/v1/auth/github/callback`.
+
+### GitHub Actions Secrets (Repository Settings → Secrets & Variables → Actions)
+* `CRON_SECRET`: Must match the `CRON_SECRET` set on Render so `.github/workflows/retention-cron.yml` can authenticate.
+* `DWARFLENS_API_URL`: Must match your Render API URL (e.g., `https://dwarflens.onrender.com`).
+
+### Billing & Payments (When Enabling Paid Plans)
+* `BILLING_PROVIDER`: Set to `stripe` (default), `lemonsqueezy`, or `razorpay`.
+* If using Stripe:
+  * `STRIPE_SECRET_KEY`: `sk_live_...`
+  * `STRIPE_WEBHOOK_SECRET`: `whsec_...` (Obtain from Stripe Dashboard → Webhooks pointing to `${API_URL}/api/v1/billing/webhook`).
+  * `STRIPE_PRICE_PRO`: Price ID for Pro plan (e.g., `price_...`).
+  * `STRIPE_PRICE_TEAM`: Price ID for Team plan (e.g., `price_...`).
+* If using Lemon Squeezy:
+  * `LEMONSQUEEZY_API_KEY`: API key.
+  * `LEMONSQUEEZY_WEBHOOK_SECRET`: Signing secret configured for webhook.
+  * `LEMONSQUEEZY_STORE_ID`: Store ID.
+* If using Razorpay:
+  * `RAZORPAY_KEY_ID`: Razorpay Key ID.
+  * `RAZORPAY_KEY_SECRET`: Razorpay Key Secret.
+  * `RAZORPAY_WEBHOOK_SECRET`: Webhook signing secret.
+
+### Email Alerts (Optional)
+* `RESEND_API_KEY`: API key from [Resend](https://resend.com) (`re_...`) for budget violation alerts and invitation emails.
