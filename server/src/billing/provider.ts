@@ -316,7 +316,10 @@ function createDefaultBillingProvider(): BillingProvider {
     return new LemonSqueezyBillingProvider();
   }
   if (provider === 'razorpay') {
-    return new RazorpayBillingProvider();
+    return new RazorpayBillingProvider(
+      process.env.RAZORPAY_KEY_ID || env.RAZORPAY_KEY_ID,
+      process.env.RAZORPAY_KEY_SECRET || env.RAZORPAY_KEY_SECRET
+    );
   }
   return new StripeBillingProvider();
 }
