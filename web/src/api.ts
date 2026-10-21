@@ -80,7 +80,12 @@ export interface DiffResult {
 export const API_BASE = ((import.meta as any).env?.VITE_API_BASE as string) || '/api/v1';
 
 async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('dwarflens_session') : null;
+  const token =
+    (typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem('dwarflens_token') || sessionStorage.getItem('dwarflens_session')
+      : null) ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('dwarflens_session') : null);
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> | undefined),
@@ -119,13 +124,31 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, name, orgName }),
     });
+    if (res.sessionId && typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('dwarflens_token', res.sessionId);
+    }
     if (res.sessionId && typeof localStorage !== 'undefined') {
       localStorage.setItem('dwarflens_session', res.sessionId);
     }
     return res;
   },
 
+  async exchangeCode(code: string): Promise<{ user: User; sessionId: string; expiresAt: string }> {
+    const res = await req<{ user: User; sessionId: string; expiresAt: string }>('/auth/exchange-code', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+    if (res.sessionId && typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('dwarflens_token', res.sessionId);
+    }
+    return res;
+  },
+
   async logout(): Promise<void> {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('dwarflens_token');
+      sessionStorage.removeItem('dwarflens_session');
+    }
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem('dwarflens_session');
     }
