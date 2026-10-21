@@ -99,6 +99,24 @@ projectsRouter.delete('/projects/:id', requireAuth, async (c) => {
     }
   }
 
+  // Typed confirmation check: require exact project name confirmation for destructive action
+  let body: any = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    body = {};
+  }
+
+  const confirmName = body.confirmName || body.name || c.req.query('confirmName');
+  if (!confirmName || confirmName !== project.name) {
+    return c.json(
+      {
+        error: `Confirmation required: please provide confirmName matching "${project.name}" to delete this project`,
+      },
+      400
+    );
+  }
+
   // Delete project (Postgres foreign keys cascade delete analyses, share links, and keys)
   await db.delete(projects).where(eq(projects.id, projectId));
 
