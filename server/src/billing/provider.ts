@@ -5,10 +5,14 @@ import { eq } from 'drizzle-orm';
 import { env } from '../env.js';
 
 export class StripeBillingProvider implements BillingProvider {
-  private secretKey: string;
+  private secretKey?: string;
 
-  constructor(secretKey: string = env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY || '') {
+  constructor(secretKey?: string) {
     this.secretKey = secretKey;
+  }
+
+  private getEffectiveSecretKey(): string {
+    return this.secretKey || env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY || '';
   }
 
   async createCheckoutSession(params: CheckoutSessionParams): Promise<{ url: string; sessionId: string }> {
@@ -20,9 +24,45 @@ export class StripeBillingProvider implements BillingProvider {
       .where(eq(orgs.id, orgId))
       .limit(1);
 
-    if (this.secretKey) {
+    const effectiveKey = this.getEffectiveSecretKey();
+
+    if (effectiveKey) {
       // In production with Stripe API key
-      const priceId = plan === 'team' ? env.STRIPE_PRICE_TEAM : env.STRIPE_PRICE_PRO;
+      const priceId = plan === 'team'
+        ? (env.STRIPE_PRICE_TEAM || process.env.STRIPE_PRICE_TEAM || '')
+        : (env.STRIPE_PRICE_PRO || process.env.STRIPE_PRICE_PRO || '');
+
+      if (!priceId) {
+        throw new Error(`Missing Stripe price ID for plan "${plan}". Configure STRIPE_PRICE_${plan.toUpperCase()}.`);
+      }
+
+      let stripeCustomerId = org?.stripeCustomerId;
+      if (!stripeCustomerId) {
+        // Create Stripe customer and store on org
+        const custRes = await fetch('https://api.stripe.com/v1/customers', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${effectiveKey}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            'metadata[org_id]': orgId,
+            description: `DwarfLens Org ${orgId}`,
+          }).toString(),
+        });
+
+        if (!custRes.ok) {
+          const custErr = await custRes.text();
+          throw new Error(`Stripe customer creation error: ${custErr}`);
+        }
+
+        const custData = await custRes.json();
+        stripeCustomerId = custData.id;
+        await db
+          .update(orgs)
+          .set({ stripeCustomerId, updatedAt: new Date() })
+          .where(eq(orgs.id, orgId));
+      }
 
       const bodyParams: Record<string, string> = {
         client_reference_id: orgId,
@@ -31,25 +71,19 @@ export class StripeBillingProvider implements BillingProvider {
         'subscription_data[metadata][org_id]': orgId,
         'subscription_data[metadata][plan]': plan,
         mode: 'subscription',
+        'line_items[0][price]': priceId,
+        'line_items[0][quantity]': '1',
+        customer: stripeCustomerId!,
         success_url: successUrl,
         cancel_url: cancelUrl,
       };
-
-      if (priceId) {
-        bodyParams['line_items[0][price]'] = priceId;
-        bodyParams['line_items[0][quantity]'] = '1';
-      }
-
-      if (org?.stripeCustomerId) {
-        bodyParams['customer'] = org.stripeCustomerId;
-      }
 
       const body = new URLSearchParams(bodyParams);
 
       const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.secretKey}`,
+          Authorization: `Bearer ${effectiveKey}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: body.toString(),
@@ -82,7 +116,9 @@ export class StripeBillingProvider implements BillingProvider {
       .where(eq(orgs.id, orgId))
       .limit(1);
 
-    if (this.secretKey) {
+    const effectiveKey = this.getEffectiveSecretKey();
+
+    if (effectiveKey) {
       if (!org?.stripeCustomerId) {
         throw new Error('Cannot open customer portal: No Stripe customer ID found for this organization. Upgrade first.');
       }
@@ -90,7 +126,7 @@ export class StripeBillingProvider implements BillingProvider {
       const res = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.secretKey}`,
+          Authorization: `Bearer ${effectiveKey}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
