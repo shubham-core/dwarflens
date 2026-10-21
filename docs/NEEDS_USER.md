@@ -50,9 +50,19 @@ Configure the following environment variables on the Render web service dashboar
   * `LEMONSQUEEZY_WEBHOOK_SECRET`: Signing secret configured for webhook.
   * `LEMONSQUEEZY_STORE_ID`: Store ID.
 * If using Razorpay:
-  * `RAZORPAY_KEY_ID`: Razorpay Key ID.
+  * `BILLING_PROVIDER`: Set to `razorpay`.
+  * `RAZORPAY_KEY_ID`: Razorpay Key ID (`rzp_live_...` or `rzp_test_...` from Razorpay Dashboard → Settings → API Keys).
   * `RAZORPAY_KEY_SECRET`: Razorpay Key Secret.
-  * `RAZORPAY_WEBHOOK_SECRET`: Webhook signing secret.
+  * `RAZORPAY_WEBHOOK_SECRET`: Webhook signing secret (configured in Razorpay Dashboard → Settings → Webhooks).
+  * `RAZORPAY_CURRENCY`: `USD` or `INR` (default: `USD`).
+  * **Webhook URL to enter in Razorpay:** `https://dwarflens.onrender.com/api/v1/billing/webhook`
+  * **Webhook Active Events to check in Razorpay:**
+    * `payment_link.paid`
+    * `payment.captured`
+    * `subscription.activated`
+    * `subscription.charged`
+    * `subscription.cancelled`
+    * `subscription.halted`
 
 ### Email Alerts (Optional)
 * `RESEND_API_KEY`: API key from [Resend](https://resend.com) (`re_...`) for budget violation alerts and invitation emails.
