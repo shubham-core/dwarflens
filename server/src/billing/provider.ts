@@ -313,7 +313,10 @@ import { RazorpayBillingProvider } from './razorpay.js';
 function createDefaultBillingProvider(): BillingProvider {
   const provider = (process.env.BILLING_PROVIDER || 'stripe').toLowerCase();
   if (provider === 'lemonsqueezy' || provider === 'lemon_squeezy') {
-    return new LemonSqueezyBillingProvider();
+    return new LemonSqueezyBillingProvider(
+      process.env.LEMONSQUEEZY_API_KEY || process.env.LEMON_SQUEEZY_API_KEY || env.LEMONSQUEEZY_API_KEY,
+      process.env.LEMONSQUEEZY_STORE_ID || process.env.LEMON_SQUEEZY_STORE_ID || env.LEMONSQUEEZY_STORE_ID
+    );
   }
   if (provider === 'razorpay') {
     return new RazorpayBillingProvider(
