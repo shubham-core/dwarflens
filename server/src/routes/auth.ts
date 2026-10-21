@@ -18,11 +18,7 @@ export const authRouter = new Hono<{ Variables: AuthContextVariables }>();
 // 1. Initiate GitHub OAuth
 authRouter.get('/github', (c) => {
   const state = crypto.randomBytes(16).toString('hex');
-  const reqHost = c.req.header('x-forwarded-host') || c.req.header('host');
-  const proto = c.req.header('x-forwarded-proto') || 'https';
-  const dynamicRedirectUri = reqHost && !reqHost.includes('localhost')
-    ? `${proto}://${reqHost}/api/v1/auth/github/callback`
-    : undefined;
+  const redirectUri = `${env.API_URL.replace(/\/$/, '')}/api/v1/auth/github/callback`;
 
   setCookie(c, 'oauth_state', state, {
     httpOnly: true,
@@ -32,7 +28,7 @@ authRouter.get('/github', (c) => {
     maxAge: 600, // 10 minutes
   });
 
-  return c.redirect(getGitHubAuthUrl(state, dynamicRedirectUri));
+  return c.redirect(getGitHubAuthUrl(state, redirectUri));
 });
 
 // 2. GitHub OAuth Callback
