@@ -59,7 +59,7 @@
 
 ### P4 — GitHub Action
 - [x] 20. **Action injection safety** — never interpolate `${{ }}` in `run:` scripts; pass all inputs and GitHub context through `env:` and reference `"$VAR"` in bash.
-- [ ] 21. **Binary download** — download pinned release binary with SHA256 check or build from `${{ github.action_path }}/..`; honor `dwarflens-version`.
+- [x] 21. **Binary download** — download pinned release binary with SHA256 check or build from `${{ github.action_path }}/..`; honor `dwarflens-version`.
 - [ ] 22. **Job failure handling** — use `if: always()` / `continue-on-error` so upload and PR comment run even when thresholds fail; fail job at end; make PR comment non-fatal for fork PRs; document `permissions: pull-requests: write`.
 - [ ] 23. **Fix macos runner and tag v0.1.0** — fix or replace macos-13 runner in `release.yml`, create first tag `v0.1.0`.
 
@@ -169,6 +169,10 @@
 ### P4-20: GitHub Action Script Injection Hardening
 - **Completed:** Audited and refactored `action/action.yml` to eliminate direct `${{ }}` template expression interpolations inside all bash `run:` scripts, passing all workflow inputs and GitHub event context properties exclusively through step-scoped `env:` variables and referencing them as quoted `"$VAR"` variables in bash. Commit: `64e290f`.
 - **Verification:** Authored `server/tests/security_action_injection.test.ts` static analysis test asserting zero `${{` expressions in any `run:` block across `action/action.yml`. All 35 server vitest test files (173 tests) passed, TypeScript typecheck clean, web build clean.
+
+### P4-21: Action Release Binary Download & SHA-256 Checksum Verification
+- **Completed:** Added pinned release binary download support in `action/action.yml` respecting `dwarflens-version` input (defaulting to `v0.1.0`), downloading platform-specific release tarballs and verifying SHA-256 checksums before execution; implemented source build fallback pointing to `${ACTION_PATH}/..` so external repositories consuming the action build cleanly. Commit: `efa2f29`.
+- **Verification:** Authored `server/tests/security_action_binary_download.test.ts` (4 tests verifying `ACTION_PATH` and `VERSION` env passing, SHA-256 checksum verification, `ACTION_PATH/..` fallback path, and `dwarflens-version` default). All 36 server vitest test files (177 tests) passed, TypeScript typecheck clean, web build clean.
 
 
 
