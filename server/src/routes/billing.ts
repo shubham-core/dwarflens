@@ -11,6 +11,7 @@ import { LemonSqueezyBillingProvider } from '../billing/lemonSqueezy.js';
 import { RazorpayBillingProvider } from '../billing/razorpay.js';
 import { PLAN_LIMITS, PlanType } from '../billing/types.js';
 import { runRetentionCleanup } from '../billing/retention.js';
+import { cleanupExpiredSessions } from '../auth/sessions.js';
 
 export const billingRouter = new Hono<{ Variables: AuthContextVariables }>();
 
@@ -311,5 +312,6 @@ billingRouter.post('/billing/retention', async (c) => {
   }
 
   const report = await runRetentionCleanup();
-  return c.json({ status: 'completed', report });
+  const expiredSessionsCleaned = await cleanupExpiredSessions();
+  return c.json({ status: 'completed', report, expiredSessionsCleaned });
 });

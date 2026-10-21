@@ -115,7 +115,11 @@ describe('Data Control & Privacy Suite (Delete Project & Delete Account)', () =>
     // Owner deletes project
     const deleteRes = await app.request(`/api/v1/projects/${projectId}`, {
       method: 'DELETE',
-      headers: { Cookie: `dwarflens_session=${ownerSession}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `dwarflens_session=${ownerSession}`,
+      },
+      body: JSON.stringify({ confirmName: 'Project To Delete' }),
     });
     expect(deleteRes.status).toBe(200);
     const body = await deleteRes.json();
@@ -163,7 +167,11 @@ describe('Data Control & Privacy Suite (Delete Project & Delete Account)', () =>
     // Delete account
     const deleteAccountRes = await app.request('/api/v1/auth/me', {
       method: 'DELETE',
-      headers: { Cookie: `dwarflens_session=${tempSession}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `dwarflens_session=${tempSession}`,
+      },
+      body: JSON.stringify({ confirmName: 'To Be Deleted' }),
     });
     expect(deleteAccountRes.status).toBe(200);
     expect((await deleteAccountRes.json()).status).toBe('deleted');
