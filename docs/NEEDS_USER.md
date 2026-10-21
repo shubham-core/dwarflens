@@ -45,10 +45,22 @@ Configure the following environment variables on the Render web service dashboar
   * `STRIPE_WEBHOOK_SECRET`: `whsec_...` (Obtain from Stripe Dashboard → Webhooks pointing to `${API_URL}/api/v1/billing/webhook`).
   * `STRIPE_PRICE_PRO`: Price ID for Pro plan (e.g., `price_...`).
   * `STRIPE_PRICE_TEAM`: Price ID for Team plan (e.g., `price_...`).
-* If using Lemon Squeezy:
-  * `LEMONSQUEEZY_API_KEY`: API key.
+* If using Lemon Squeezy (Merchant of Record):
+  * `BILLING_PROVIDER`: Set to `lemonsqueezy`.
+  * `LEMONSQUEEZY_API_KEY`: API key (Lemon Squeezy Dashboard → Settings → API Keys).
+  * `LEMONSQUEEZY_STORE_ID`: Store ID (Lemon Squeezy Dashboard → Settings → Stores).
+  * `LEMONSQUEEZY_VARIANT_PRO`: Variant ID for the Pro plan ($19/mo).
+  * `LEMONSQUEEZY_VARIANT_TEAM`: Variant ID for the Team plan ($49/mo).
   * `LEMONSQUEEZY_WEBHOOK_SECRET`: Signing secret configured for webhook.
-  * `LEMONSQUEEZY_STORE_ID`: Store ID.
+  * *(Optional)* `LEMONSQUEEZY_STORE_SLUG`: Your Lemon Squeezy subdomain slug (e.g. `dwarflens`).
+  * **Webhook URL to enter in Lemon Squeezy:** `https://dwarflens.onrender.com/api/v1/billing/webhook`
+  * **Webhook Events to enable:**
+    * `order_created`
+    * `subscription_created`
+    * `subscription_updated`
+    * `subscription_cancelled`
+    * `subscription_resumed`
+    * `subscription_expired`
 * If using Razorpay:
   * `BILLING_PROVIDER`: Set to `razorpay`.
   * `RAZORPAY_KEY_ID`: Razorpay Key ID (`rzp_live_...` or `rzp_test_...` from Razorpay Dashboard → Settings → API Keys).
