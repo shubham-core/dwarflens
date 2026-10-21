@@ -65,7 +65,7 @@
 
 ### P5 — Hygiene
 - [x] 24. **Cleanup** — remove `web/dist` from git, fix double-slash in `#shared/`, normalize `APP_URL`, set `NODE_ENV=production` explicitly in Render config, add GitHub branch rule requiring CI before merge. *(Commit: `0698e50`)*
-- [ ] 25. **Regression tests and security docs** — add regression tests for all items above, and `docs/SECURITY.md`.
+- [x] 25. **Regression tests and security docs** — add regression tests for all items above, and `docs/SECURITY.md`. *(Commit: `9d09273`)*
 
 ---
 ## Task Log
