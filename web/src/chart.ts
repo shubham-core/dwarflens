@@ -1,6 +1,7 @@
 // DwarfLens SVG Size History Line Chart
 
 import { AnalysisSummary } from './api';
+import { escapeHtml } from './escape';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -74,7 +75,7 @@ export function renderSizeHistoryChart(container: HTMLElement, data: AnalysisSum
       <!-- Data Dots -->
       ${points.map((p) => `
         <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="#1c2128" stroke="#58a6ff" stroke-width="2" style="cursor: pointer;">
-          <title>${p.data.branch} @ ${p.data.commitSha.substring(0, 7)}: ${formatBytes(p.data.totalSize)} (${new Date(p.data.createdAt).toLocaleDateString()})</title>
+          <title>${escapeHtml(p.data.branch)} @ ${escapeHtml(p.data.commitSha.substring(0, 7))}: ${formatBytes(p.data.totalSize)} (${new Date(p.data.createdAt).toLocaleDateString()})</title>
         </circle>
       `).join('')}
 
