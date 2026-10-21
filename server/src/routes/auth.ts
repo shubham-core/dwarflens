@@ -155,56 +155,71 @@ authRouter.get('/github/callback', async (c) => {
 });
 
 // 3. Dev login for test suites and local development ONLY (never enabled in production)
-if (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') {
-  authRouter.post('/dev-login', async (c) => {
-    const { email, name, orgName } = await c.req.json();
-    if (!email) {
-      return c.json({ error: 'Email required' }, 400);
-    }
+authRouter.post('/dev-login', async (c) => {
+  // Only allow when NODE_ENV is explicitly 'development' or 'test'
+  if (env.NODE_ENV !== 'development' && env.NODE_ENV !== 'test') {
+    return c.json({ error: 'Not found' }, 404);
+  }
 
-    let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (!user) {
-      [user] = await db
-        .insert(users)
-        .values({
-          email,
-          emailVerified: true,
-          name: name || email.split('@')[0],
-        })
-        .returning();
+  // Enforce that request strictly comes from localhost
+  const host = (c.req.header('host') || '').split(':')[0].toLowerCase();
+  const forwarded = c.req.header('x-forwarded-for');
+  const clientIp = (forwarded ? forwarded.split(',')[0].trim() : '').toLowerCase();
 
-      const slug = `${(orgName || user.name || 'org').toLowerCase().replace(/[^a-z0-9]/g, '-')}-${crypto.randomBytes(3).toString('hex')}`;
-      const [org] = await db
-        .insert(orgs)
-        .values({
-          name: orgName || `${user.name}'s Org`,
-          slug,
-        })
-        .returning();
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  const isLocalIp = !clientIp || clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === 'localhost';
 
-      await db.insert(orgMembers).values({
-        orgId: org.id,
-        userId: user.id,
-        role: 'owner',
-      });
-    }
+  if (!isLocalHost || !isLocalIp) {
+    return c.json({ error: 'Not found' }, 404);
+  }
 
-    const { sessionId, expiresAt } = await createSession(user.id);
+  const { email, name, orgName } = await c.req.json();
+  if (!email) {
+    return c.json({ error: 'Email required' }, 400);
+  }
 
-    setCookie(c, 'dwarflens_session', sessionId, {
-      httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: env.NODE_ENV === 'production' ? 'None' : 'Lax',
-      path: '/',
-      expires: expiresAt,
+  let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (!user) {
+    [user] = await db
+      .insert(users)
+      .values({
+        email,
+        emailVerified: true,
+        name: name || email.split('@')[0],
+      })
+      .returning();
+
+    const slug = `${(orgName || user.name || 'org').toLowerCase().replace(/[^a-z0-9]/g, '-')}-${crypto.randomBytes(3).toString('hex')}`;
+    const [org] = await db
+      .insert(orgs)
+      .values({
+        name: orgName || `${user.name}'s Org`,
+        slug,
+      })
+      .returning();
+
+    await db.insert(orgMembers).values({
+      orgId: org.id,
+      userId: user.id,
+      role: 'owner',
     });
+  }
 
-    return c.json({
-      user,
-      sessionId,
-    });
+  const { sessionId, expiresAt } = await createSession(user.id);
+
+  setCookie(c, 'dwarflens_session', sessionId, {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'Lax',
+    path: '/',
+    expires: expiresAt,
   });
-}
+
+  return c.json({
+    user,
+    sessionId,
+  });
+});
 
 // 4. Get current user and organizations
 authRouter.get('/me', requireUser, async (c) => {
