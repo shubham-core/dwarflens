@@ -51,7 +51,7 @@
 - [x] 14. **Pending invitations** — create invitation with token, email it, add user only after they accept while logged in with a verified email.
 - [x] 15. **Input validation** — validate all route params as UUIDs (400 on bad input), wrap `c.req.json()` in safe parsing, add `app.onError` returning generic 500 JSON, enforce 5 MB body limit via middleware.
 - [x] 16. **Rate limiting** — use platform trusted client IP (not raw `X-Forwarded-For`), apply to login/OAuth/share/ingest routes, document multi-instance shared store requirement.
-- [ ] 17. **Session hardening** — hash session IDs in DB, delete expired sessions periodically, require typed confirmation for destructive actions, don't delete orgs that still have other members.
+- [x] 17. **Session hardening** — hash session IDs in DB, delete expired sessions periodically, require typed confirmation for destructive actions, don't delete orgs that still have other members.
 - [ ] 18. **Dependency audit** — upgrade drizzle-orm to patched version, run `npm audit` for server and web.
 
 ### P3 — Login on Other Domains
@@ -153,6 +153,10 @@
 ### P2-16: Platform Trusted IP & Comprehensive Rate Limiting
 - **Completed:** Hardened rate limiting middleware to resolve trusted client IPs from platform headers (`CF-Connecting-IP`, `True-Client-IP`, or the rightmost IP in `X-Forwarded-For`), neutralizing client-injected IP headers; mounted rate limiters with route-specific buckets on OAuth routes (`GET /github`, `GET /github/callback`), login (`POST /dev-login`), public share report reading (`GET /shared/:token`), and share generation (`POST /analyses/:id/share`); added `Retry-After` headers; documented multi-instance shared store requirements in `docs/DEPLOYMENT.md` and `docs/ARCHITECTURE.md`. Commit: `05b77b2`.
 - **Verification:** Authored `server/tests/security_rate_limiting.test.ts` (3 tests verifying trusted CF IP enforcement despite spoofed XFF, dev-login rate limit enforcement, and public share rate limit enforcement). All 32 server vitest test files (164 tests) passed, TypeScript typecheck clean, web build clean.
+
+### P2-17: Session Token Hashing & Safe Destructive Deletions
+- **Completed:** Hardened session management to store only SHA-256 hashes of session tokens in the database, preventing token compromise upon DB leaks; added `cleanupExpiredSessions()` with periodic background execution and retention hook; enforced typed confirmation (`confirmName`) for destructive project deletion (`DELETE /api/v1/projects/:id`) and account deletion (`DELETE /api/v1/auth/me`), rejecting missing/mismatched requests with 400; preserved multi-member organizations when an owner deletes their account, transferring ownership rather than deleting the org. Commit: `834b2db`.
+- **Verification:** Authored `server/tests/security_session_hardening.test.ts` (5 tests verifying SHA-256 session hash storage, expired session cleanup, typed project confirmation rejection/success, typed account confirmation rejection/success, and multi-member org preservation). All 33 server vitest test files (169 tests) passed, TypeScript typecheck clean, web build clean.
 
 
 
