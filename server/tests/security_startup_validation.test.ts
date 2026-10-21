@@ -88,6 +88,22 @@ describe('R4: Startup Production Environment Validation', () => {
     expect(() => validateProductionEnv(parsedRazorpayNoSecret)).toThrow(/RAZORPAY_WEBHOOK_SECRET is required/i);
   });
 
+  it('allows starting in production without billing webhook secret if BILLING_PROVIDER is "none" or "disabled"', () => {
+    const parsedNone = envSchema.parse({
+      ...baseValidProduction,
+      BILLING_PROVIDER: 'none',
+      STRIPE_WEBHOOK_SECRET: '',
+    });
+    expect(() => validateProductionEnv(parsedNone)).not.toThrow();
+
+    const parsedDisabled = envSchema.parse({
+      ...baseValidProduction,
+      BILLING_PROVIDER: 'disabled',
+      STRIPE_WEBHOOK_SECRET: '',
+    });
+    expect(() => validateProductionEnv(parsedDisabled)).not.toThrow();
+  });
+
   it('refuses to start in production if CRON_SECRET is missing or shorter than 32 characters', () => {
     const parsedNoCron = envSchema.parse({
       ...baseValidProduction,
