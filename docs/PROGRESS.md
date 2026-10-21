@@ -1,7 +1,7 @@
 # DwarfLens SaaS Transformation Progress
 
 ## Step 0: Orient First
-- [x] Orient and create documentation baseline (AGENTS.md, PROGRESS.md, ARCHITECTURE.md, DECISIONS.md)
+- [x] Orient and create documentation baseline (CONTRIBUTING.md, PROGRESS.md, ARCHITECTURE.md, DECISIONS.md)
 
 ## TIER A: Foundation (hardest, do first)
 - [x] A1. Analysis JSON contract
@@ -71,7 +71,7 @@
 ## Task Log
 
 ### Step 0: Orient First
-- **Completed:** Baseline architecture audit, created AGENTS.md, docs/PROGRESS.md, docs/ARCHITECTURE.md, and docs/DECISIONS.md.
+- **Completed:** Baseline architecture audit, created CONTRIBUTING.md, docs/PROGRESS.md, docs/ARCHITECTURE.md, and docs/DECISIONS.md.
 - **Verification:** Verified C++ clean build, 5/5 ctest suites passed, web build cleanly succeeded.
 
 ### A1: Analysis JSON Contract

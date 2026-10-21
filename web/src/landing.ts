@@ -37,7 +37,7 @@ export function renderLandingPage(container: HTMLElement): void {
               <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.5rem;">Live Sample:</span>
               <button class="btn btn-sm demo-sample-tab active" data-sample="firmware" style="background: var(--accent); color: #fff; font-size: 0.8rem; padding: 0.25rem 0.6rem; border-radius: 6px; border: none; cursor: pointer;">firmware.elf (ELF)</button>
               <button class="btn btn-sm demo-sample-tab" data-sample="wasm" style="background: transparent; color: var(--text-secondary); font-size: 0.8rem; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); cursor: pointer;">kernel.wasm (Wasm)</button>
-              <button class="btn btn-sm demo-sample-tab" data-sample="pe" style="background: transparent; color: var(--text-secondary); font-size: 0.8rem; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); cursor: pointer;">agent.exe (PE)</button>
+              <button class="btn btn-sm demo-sample-tab" data-sample="pe" style="background: transparent; color: var(--text-secondary); font-size: 0.8rem; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); cursor: pointer;">service.exe (PE)</button>
             </div>
             <a href="#try" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; font-weight: 600;">Open Full Analyzer &rarr;</a>
           </div>
@@ -354,7 +354,7 @@ const DEMO_SAMPLES: Record<string, DemoSample> = {
     },
   },
   pe: {
-    target: 'agent.exe',
+    target: 'service.exe',
     format: 'PE32+ executable (Windows x64)',
     arch: 'x86_64',
     fileSize: 312800,
