@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { bodyLimit } from 'hono/body-limit';
 import { authenticate } from './middleware/auth.js';
+import { validateUuidMiddleware } from './middleware/validateUuid.js';
 import { authRouter } from './routes/auth.js';
 import { projectsRouter, orgRouter } from './routes/projects.js';
 import { analysesRouter } from './routes/analyses.js';
@@ -11,6 +13,33 @@ import { billingRouter } from './routes/billing.js';
 import { env } from './env.js';
 
 export const app = new Hono();
+
+// Global error handler (returning generic 500 JSON without stack trace leaks)
+app.onError((err, c) => {
+  // If JSON parsing error in request body
+  if (err instanceof SyntaxError || (err as any).name === 'SyntaxError' || err.message?.includes('JSON')) {
+    return c.json({ error: 'Malformed JSON in request body' }, 400);
+  }
+
+  // If Postgres UUID error
+  if ((err as any).code === '22P02' || err.message?.includes('invalid input syntax for type uuid')) {
+    return c.json({ error: 'Invalid UUID format' }, 400);
+  }
+
+  console.error('[Internal Server Error]', err);
+  return c.json({ error: 'Internal Server Error' }, 500);
+});
+
+// Enforce 5 MB body limit on all incoming requests
+app.use(
+  '*',
+  bodyLimit({
+    maxSize: 5 * 1024 * 1024, // 5 MB
+    onError: (c) => {
+      return c.json({ error: 'Payload too large: Max allowed size is 5 MB' }, 413);
+    },
+  })
+);
 
 export function getAllowedOrigins(): Set<string> {
   const allowed = new Set<string>();
@@ -56,8 +85,16 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-// Apply authentication middleware to API routes
+// Apply authentication and UUID parameter validation middleware to API routes
+app.use('/api/*', validateUuidMiddleware);
 app.use('/api/*', authenticate);
+
+// Test error route for 500 error handler verification
+if (env.NODE_ENV !== 'production') {
+  app.get('/api/v1/throw-error-test', () => {
+    throw new Error('Test internal error');
+  });
+}
 
 // Health check endpoint
 app.get('/health', (c) => {
