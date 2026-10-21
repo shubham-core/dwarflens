@@ -50,7 +50,7 @@
 - [x] 13. **Alert hardening** — allow `slack_webhook_url` only for `https://hooks.slack.com/services/*`; only send alert emails to verified org members; hide webhook URLs from viewers (return `has_slack_webhook` boolean).
 - [x] 14. **Pending invitations** — create invitation with token, email it, add user only after they accept while logged in with a verified email.
 - [x] 15. **Input validation** — validate all route params as UUIDs (400 on bad input), wrap `c.req.json()` in safe parsing, add `app.onError` returning generic 500 JSON, enforce 5 MB body limit via middleware.
-- [ ] 16. **Rate limiting** — use platform trusted client IP (not raw `X-Forwarded-For`), apply to login/OAuth/share/ingest routes, document multi-instance shared store requirement.
+- [x] 16. **Rate limiting** — use platform trusted client IP (not raw `X-Forwarded-For`), apply to login/OAuth/share/ingest routes, document multi-instance shared store requirement.
 - [ ] 17. **Session hardening** — hash session IDs in DB, delete expired sessions periodically, require typed confirmation for destructive actions, don't delete orgs that still have other members.
 - [ ] 18. **Dependency audit** — upgrade drizzle-orm to patched version, run `npm audit` for server and web.
 
@@ -149,6 +149,10 @@
 ### P2-15: Input Validation and Error Handling
 - **Completed:** Added comprehensive UUID validation middleware (`server/src/middleware/validateUuid.ts`) rejecting non-UUID route parameters and query params with 400 Bad Request; enforced global 5 MB body limit middleware via `hono/body-limit` (returning 413); added safe JSON body error handling returning 400 on malformed payloads; added generic `app.onError` returning generic 500 JSON without stack trace leaks. Commit: `4a769c6`.
 - **Verification:** Authored `server/tests/security_input_validation.test.ts` (9 tests covering invalid UUID params across routes, malformed JSON bodies, payload size limits exceeding 5 MB, and generic 500 error sanitization). All 31 server vitest test files (161 tests) passed, TypeScript typecheck clean, web build clean.
+
+### P2-16: Platform Trusted IP & Comprehensive Rate Limiting
+- **Completed:** Hardened rate limiting middleware to resolve trusted client IPs from platform headers (`CF-Connecting-IP`, `True-Client-IP`, or the rightmost IP in `X-Forwarded-For`), neutralizing client-injected IP headers; mounted rate limiters with route-specific buckets on OAuth routes (`GET /github`, `GET /github/callback`), login (`POST /dev-login`), public share report reading (`GET /shared/:token`), and share generation (`POST /analyses/:id/share`); added `Retry-After` headers; documented multi-instance shared store requirements in `docs/DEPLOYMENT.md` and `docs/ARCHITECTURE.md`. Commit: `05b77b2`.
+- **Verification:** Authored `server/tests/security_rate_limiting.test.ts` (3 tests verifying trusted CF IP enforcement despite spoofed XFF, dev-login rate limit enforcement, and public share rate limit enforcement). All 32 server vitest test files (164 tests) passed, TypeScript typecheck clean, web build clean.
 
 
 
