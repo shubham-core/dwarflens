@@ -33,6 +33,9 @@ export const envSchema = z.object({
   STRIPE_PRICE_PRO: z.string().optional().default(''),
   STRIPE_PRICE_TEAM: z.string().optional().default(''),
   STRIPE_WEBHOOK_SECRET: z.string().optional().default(''),
+  LEMONSQUEEZY_WEBHOOK_SECRET: z.string().optional().default(''),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
+  BILLING_PROVIDER: z.string().optional().default('stripe'),
   CRON_SECRET: z.string().optional().default(''),
 });
 

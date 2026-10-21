@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import crypto from 'crypto';
 import { app } from '../src/app.js';
+import { env } from '../src/env.js';
 import { db } from '../src/db/client.js';
 import { orgs, projects, analyses } from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
@@ -157,13 +159,19 @@ describe('Billing, Plan Limits & Data Retention Suite', () => {
   });
 
   it('handles Stripe webhooks to upgrade and downgrade organization plan', async () => {
-    // 1. Webhook checkout.session.completed upgrades org to Pro
-    const upgradeWebhook = await app.request('/api/v1/billing/webhook', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    const testSecret = 'whsec_test_secret_for_billing_tests';
+    const origSecret = env.STRIPE_WEBHOOK_SECRET;
+    (env as any).STRIPE_WEBHOOK_SECRET = testSecret;
+
+    const signPayload = (payload: string) => {
+      const t = Math.floor(Date.now() / 1000);
+      const hmac = crypto.createHmac('sha256', testSecret).update(`${t}.${payload}`, 'utf8').digest('hex');
+      return `t=${t},v1=${hmac}`;
+    };
+
+    try {
+      // 1. Webhook checkout.session.completed upgrades org to Pro
+      const upgradeBody = JSON.stringify({
         type: 'checkout.session.completed',
         data: {
           object: {
@@ -174,41 +182,44 @@ describe('Billing, Plan Limits & Data Retention Suite', () => {
             },
           },
         },
-      }),
-    });
+      });
 
-    expect(upgradeWebhook.status).toBe(200);
+      const upgradeWebhook = await app.request('/api/v1/billing/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'stripe-signature': signPayload(upgradeBody),
+        },
+        body: upgradeBody,
+      });
 
-    // Verify org is now on 'pro'
-    const [updatedOrg] = await db
-      .select({ plan: orgs.plan })
-      .from(orgs)
-      .where(eq(orgs.id, freeOrgId));
-    expect(updatedOrg.plan).toBe('pro');
+      expect(upgradeWebhook.status).toBe(200);
 
-    // Pro plan now allows creating a 2nd project!
-    const resProProj = await app.request(`/api/v1/orgs/${freeOrgId}/projects`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: `dwarflens_session=${ownerSession}`,
-      },
-      body: JSON.stringify({
-        name: 'Pro Second Project',
-        slug: `pro-proj-2-${Date.now().toString(36)}`,
-        repo: 'shubham-core/pro-proj-2',
-        is_private: true, // Pro allows private repos too
-      }),
-    });
-    expect(resProProj.status).toBe(201);
+      // Verify org is now on 'pro'
+      const [updatedOrg] = await db
+        .select({ plan: orgs.plan })
+        .from(orgs)
+        .where(eq(orgs.id, freeOrgId));
+      expect(updatedOrg.plan).toBe('pro');
 
-    // 2. Webhook customer.subscription.deleted downgrades org back to Free
-    const cancelWebhook = await app.request('/api/v1/billing/webhook', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      // Pro plan now allows creating a 2nd project!
+      const resProProj = await app.request(`/api/v1/orgs/${freeOrgId}/projects`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: `dwarflens_session=${ownerSession}`,
+        },
+        body: JSON.stringify({
+          name: 'Pro Second Project',
+          slug: `pro-proj-2-${Date.now().toString(36)}`,
+          repo: 'shubham-core/pro-proj-2',
+          is_private: true, // Pro allows private repos too
+        }),
+      });
+      expect(resProProj.status).toBe(201);
+
+      // 2. Webhook customer.subscription.deleted downgrades org back to Free
+      const cancelBody = JSON.stringify({
         type: 'customer.subscription.deleted',
         data: {
           object: {
@@ -217,16 +228,27 @@ describe('Billing, Plan Limits & Data Retention Suite', () => {
             },
           },
         },
-      }),
-    });
+      });
 
-    expect(cancelWebhook.status).toBe(200);
+      const cancelWebhook = await app.request('/api/v1/billing/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'stripe-signature': signPayload(cancelBody),
+        },
+        body: cancelBody,
+      });
 
-    const [downgradedOrg] = await db
-      .select({ plan: orgs.plan })
-      .from(orgs)
-      .where(eq(orgs.id, freeOrgId));
-    expect(downgradedOrg.plan).toBe('free');
+      expect(cancelWebhook.status).toBe(200);
+
+      const [downgradedOrg] = await db
+        .select({ plan: orgs.plan })
+        .from(orgs)
+        .where(eq(orgs.id, freeOrgId));
+      expect(downgradedOrg.plan).toBe('free');
+    } finally {
+      (env as any).STRIPE_WEBHOOK_SECRET = origSecret;
+    }
   });
 
   it('runs retention cleanup, pruning Free tier analyses older than 30 days', async () => {
