@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { app } from '../src/app.js';
 import { db } from '../src/db/client.js';
-import { orgs } from '../src/db/schema.js';
-import { eq } from 'drizzle-orm';
+import { orgs, users, orgMembers } from '../src/db/schema.js';
+import { eq, and } from 'drizzle-orm';
 
 describe('Teams and Role Enforcement Suite (owner / member / viewer)', () => {
+  const runId = Math.random().toString(36).substring(7);
   let orgId: string;
   let ownerSession: string;
   let memberSession: string;
@@ -15,12 +16,10 @@ describe('Teams and Role Enforcement Suite (owner / member / viewer)', () => {
   let analysisId: string;
 
   beforeAll(async () => {
-    const runId = Math.random().toString(36).substring(7);
-
     // 1. Create Org and Owner
     const ownerRes = await app.request('/api/v1/auth/dev-login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Host: 'localhost:3000' },
       body: JSON.stringify({
         email: `team-owner-${runId}@example.com`,
         name: 'Team Owner',
@@ -40,7 +39,7 @@ describe('Teams and Role Enforcement Suite (owner / member / viewer)', () => {
     // 2. Create Member user
     const memberLogin = await app.request('/api/v1/auth/dev-login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Host: 'localhost:3000' },
       body: JSON.stringify({
         email: `team-member-${runId}@example.com`,
         name: 'Team Member',
@@ -51,7 +50,7 @@ describe('Teams and Role Enforcement Suite (owner / member / viewer)', () => {
     // 3. Create Viewer user
     const viewerLogin = await app.request('/api/v1/auth/dev-login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Host: 'localhost:3000' },
       body: JSON.stringify({
         email: `team-viewer-${runId}@example.com`,
         name: 'Team Viewer',
@@ -101,54 +100,109 @@ describe('Teams and Role Enforcement Suite (owner / member / viewer)', () => {
 
   // --- Member Invitation & Role Assignment ---
 
-  it('allows owner to invite a member with "member" role', async () => {
-    const res = await app.request(`/api/v1/orgs/${orgId}/members`, {
+  it('allows owner to invite a member with "member" role via pending invitations', async () => {
+    const inviteEmail = `team-member-invited-${runId}@example.com`;
+    const inviteRes = await app.request(`/api/v1/orgs/${orgId}/invites`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Cookie: `dwarflens_session=${ownerSession}`,
       },
       body: JSON.stringify({
-        email: `team-member-invited@example.com`,
+        email: inviteEmail,
         role: 'member',
       }),
     });
 
-    expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body.member.role).toBe('member');
-    expect(body.member.user.email).toBe('team-member-invited@example.com');
-    memberId = body.member.id;
+    expect(inviteRes.status).toBe(201);
+    const inviteBody = await inviteRes.json();
+    expect(inviteBody.invitation.role).toBe('member');
+    expect(inviteBody.invitation.email).toBe(inviteEmail);
+    const token = inviteBody.invitation.token;
+
+    // Login as invitee and accept
+    const loginRes = await app.request('/api/v1/auth/dev-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Host: 'localhost:3000' },
+      body: JSON.stringify({ email: inviteEmail }),
+    });
+    const session = (await loginRes.json()).sessionId;
+
+    const acceptRes = await app.request('/api/v1/invitations/accept', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `dwarflens_session=${session}`,
+      },
+      body: JSON.stringify({ token }),
+    });
+    expect(acceptRes.status).toBe(200);
+
+    const [m] = await db
+      .select({ id: orgMembers.id })
+      .from(orgMembers)
+      .innerJoin(users, eq(orgMembers.userId, users.id))
+      .where(and(eq(orgMembers.orgId, orgId), eq(users.email, inviteEmail)))
+      .limit(1);
+    memberId = m.id;
   });
 
-  it('allows owner to invite a member with "viewer" role', async () => {
-    const res = await app.request(`/api/v1/orgs/${orgId}/members`, {
+  it('allows owner to invite a member with "viewer" role via pending invitations', async () => {
+    const inviteEmail = `team-viewer-invited-${runId}@example.com`;
+    const inviteRes = await app.request(`/api/v1/orgs/${orgId}/invites`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Cookie: `dwarflens_session=${ownerSession}`,
       },
       body: JSON.stringify({
-        email: `team-viewer-invited@example.com`,
+        email: inviteEmail,
         role: 'viewer',
       }),
     });
 
-    expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body.member.role).toBe('viewer');
-    viewerId = body.member.id;
+    expect(inviteRes.status).toBe(201);
+    const inviteBody = await inviteRes.json();
+    expect(inviteBody.invitation.role).toBe('viewer');
+    const token = inviteBody.invitation.token;
+
+    // Login as invitee and accept
+    const loginRes = await app.request('/api/v1/auth/dev-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Host: 'localhost:3000' },
+      body: JSON.stringify({ email: inviteEmail }),
+    });
+    const session = (await loginRes.json()).sessionId;
+
+    const acceptRes = await app.request('/api/v1/invitations/accept', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `dwarflens_session=${session}`,
+      },
+      body: JSON.stringify({ token }),
+    });
+    expect(acceptRes.status).toBe(200);
+
+    const [v] = await db
+      .select({ id: orgMembers.id })
+      .from(orgMembers)
+      .innerJoin(users, eq(orgMembers.userId, users.id))
+      .where(and(eq(orgMembers.orgId, orgId), eq(users.email, inviteEmail)))
+      .limit(1);
+    viewerId = v.id;
   });
 
   it('rejects duplicate invitations for existing members (409 Conflict)', async () => {
-    const res = await app.request(`/api/v1/orgs/${orgId}/members`, {
+    const inviteEmail = `team-member-invited-${runId}@example.com`;
+    const res = await app.request(`/api/v1/orgs/${orgId}/invites`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Cookie: `dwarflens_session=${ownerSession}`,
       },
       body: JSON.stringify({
-        email: `team-member-invited@example.com`,
+        email: inviteEmail,
         role: 'member',
       }),
     });
@@ -162,29 +216,15 @@ describe('Teams and Role Enforcement Suite (owner / member / viewer)', () => {
       headers: { Cookie: `dwarflens_session=${memberSession}` },
     });
     const memberEmail = (await mRes.json()).user.email;
+    const [mUser] = await db.select().from(users).where(eq(users.email, memberEmail)).limit(1);
+    await db.insert(orgMembers).values({ orgId, userId: mUser.id, role: 'member' });
 
     const vRes = await app.request('/api/v1/auth/me', {
       headers: { Cookie: `dwarflens_session=${viewerSession}` },
     });
     const viewerEmail = (await vRes.json()).user.email;
-
-    await app.request(`/api/v1/orgs/${orgId}/members`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: `dwarflens_session=${ownerSession}`,
-      },
-      body: JSON.stringify({ email: memberEmail, role: 'member' }),
-    });
-
-    await app.request(`/api/v1/orgs/${orgId}/members`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: `dwarflens_session=${ownerSession}`,
-      },
-      body: JSON.stringify({ email: viewerEmail, role: 'viewer' }),
-    });
+    const [vUser] = await db.select().from(users).where(eq(users.email, viewerEmail)).limit(1);
+    await db.insert(orgMembers).values({ orgId, userId: vUser.id, role: 'viewer' });
 
     // Check list as viewer
     const listAsViewer = await app.request(`/api/v1/orgs/${orgId}/members`, {
@@ -198,7 +238,7 @@ describe('Teams and Role Enforcement Suite (owner / member / viewer)', () => {
   // --- Role Enforcements on Endpoints ---
 
   it('enforces roles on member invitations (viewers and members get 403 Forbidden)', async () => {
-    const resAsViewer = await app.request(`/api/v1/orgs/${orgId}/members`, {
+    const resAsViewer = await app.request(`/api/v1/orgs/${orgId}/invites`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -208,7 +248,7 @@ describe('Teams and Role Enforcement Suite (owner / member / viewer)', () => {
     });
     expect(resAsViewer.status).toBe(403);
 
-    const resAsMember = await app.request(`/api/v1/orgs/${orgId}/members`, {
+    const resAsMember = await app.request(`/api/v1/orgs/${orgId}/invites`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
