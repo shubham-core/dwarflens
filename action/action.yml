@@ -53,6 +53,8 @@ runs:
   steps:
     - name: Setup DwarfLens
       shell: bash
+      env:
+        GITHUB_WORKSPACE: ${{ github.workspace }}
       run: |
         set -euo pipefail
         echo "🔍 Setting up DwarfLens..."
@@ -60,7 +62,7 @@ runs:
         # Try to find pre-built dwarflens in PATH
         if command -v dwarflens &>/dev/null; then
           echo "✅ Found dwarflens in PATH: $(which dwarflens)"
-          echo "DWARFLENS_BIN=dwarflens" >> $GITHUB_ENV
+          echo "DWARFLENS_BIN=dwarflens" >> "$GITHUB_ENV"
         else
           # Build from source
           echo "Building DwarfLens from source..."
@@ -68,9 +70,9 @@ runs:
           DWARFLENS_SRC_DIR="${RUNNER_TEMP}/dwarflens_src"
           
           # Clone or use local
-          if [ -f "${{ github.workspace }}/CMakeLists.txt" ] && \
-             grep -q "dwarflens" "${{ github.workspace }}/CMakeLists.txt" 2>/dev/null; then
-            DWARFLENS_SRC_DIR="${{ github.workspace }}"
+          if [ -f "${GITHUB_WORKSPACE}/CMakeLists.txt" ] && \
+             grep -q "dwarflens" "${GITHUB_WORKSPACE}/CMakeLists.txt" 2>/dev/null; then
+            DWARFLENS_SRC_DIR="${GITHUB_WORKSPACE}"
           fi
           
           mkdir -p "${DWARFLENS_BUILD_DIR}"
@@ -80,22 +82,23 @@ runs:
             2>&1 | tail -5
           cmake --build "${DWARFLENS_BUILD_DIR}" --target dwarflens -j$(nproc) 2>&1 | tail -10
           
-          echo "DWARFLENS_BIN=${DWARFLENS_BUILD_DIR}/dwarflens" >> $GITHUB_ENV
+          echo "DWARFLENS_BIN=${DWARFLENS_BUILD_DIR}/dwarflens" >> "$GITHUB_ENV"
           echo "✅ DwarfLens built successfully"
         fi
 
     - name: Run Analysis
       id: analyze
       shell: bash
+      env:
+        TARGET_BINARY: ${{ inputs.target-binary }}
+        BASE_BINARY: ${{ inputs.base-binary }}
+        FORMAT: ${{ inputs.format }}
+        MAX_GROWTH: ${{ inputs.max-growth-bytes }}
+        FAIL_PADDING: ${{ inputs.fail-on-padding-regression }}
       run: |
         set -euo pipefail
         
         DWARFLENS="${DWARFLENS_BIN:-dwarflens}"
-        TARGET_BINARY="${{ inputs.target-binary }}"
-        BASE_BINARY="${{ inputs.base-binary }}"
-        FORMAT="${{ inputs.format }}"
-        MAX_GROWTH="${{ inputs.max-growth-bytes }}"
-        FAIL_PADDING="${{ inputs.fail-on-padding-regression }}"
         
         REPORT_FILE="${RUNNER_TEMP}/dwarflens_report.md"
         EXIT_CODE=0
@@ -123,14 +126,14 @@ runs:
         
         # Set outputs
         REPORT=$(cat "${REPORT_FILE}")
-        echo "report<<EOF" >> $GITHUB_OUTPUT
-        echo "${REPORT}" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        echo "report<<EOF" >> "$GITHUB_OUTPUT"
+        echo "${REPORT}" >> "$GITHUB_OUTPUT"
+        echo "EOF" >> "$GITHUB_OUTPUT"
         
         if [ $EXIT_CODE -ne 0 ]; then
-          echo "exceeded_threshold=true" >> $GITHUB_OUTPUT
+          echo "exceeded_threshold=true" >> "$GITHUB_OUTPUT"
         else
-          echo "exceeded_threshold=false" >> $GITHUB_OUTPUT
+          echo "exceeded_threshold=false" >> "$GITHUB_OUTPUT"
         fi
         
         exit $EXIT_CODE
@@ -139,27 +142,34 @@ runs:
       id: upload
       if: inputs.api-url != '' && inputs.api-key != ''
       shell: bash
+      env:
+        TARGET_BINARY: ${{ inputs.target-binary }}
+        API_URL: ${{ inputs.api-url }}
+        API_KEY: ${{ inputs.api-key }}
+        BUILD_NAME: ${{ inputs.build-name }}
+        EVENT_NAME: ${{ github.event_name }}
+        DEFAULT_COMMIT_SHA: ${{ github.sha }}
+        DEFAULT_BRANCH: ${{ github.ref_name }}
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
         set -euo pipefail
         
         DWARFLENS="${DWARFLENS_BIN:-dwarflens}"
-        TARGET_BINARY="${{ inputs.target-binary }}"
-        API_URL="${{ inputs.api-url }}"
-        API_KEY="${{ inputs.api-key }}"
-        BUILD_NAME="${{ inputs.build-name }}"
         JSON_PAYLOAD="${RUNNER_TEMP}/dwarflens_upload.json"
         
         echo "📊 Generating JSON analysis for SaaS upload..."
-        COMMIT_SHA="${{ github.sha }}"
-        BRANCH="${{ github.ref_name }}"
-        if [ "${{ github.event_name }}" = "pull_request" ] && [ -n "${{ github.event.pull_request.head.sha }}" ]; then
-          COMMIT_SHA="${{ github.event.pull_request.head.sha }}"
-          BRANCH="${{ github.event.pull_request.head.ref }}"
+        COMMIT_SHA="${DEFAULT_COMMIT_SHA}"
+        BRANCH="${DEFAULT_BRANCH}"
+        if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${PR_HEAD_SHA}" ]; then
+          COMMIT_SHA="${PR_HEAD_SHA}"
+          BRANCH="${PR_HEAD_REF}"
         fi
         
         "${DWARFLENS}" analyze "${TARGET_BINARY}" \
           --format=json \
-          --repo="${{ github.repository }}" \
+          --repo="${GITHUB_REPOSITORY}" \
           --commit="${COMMIT_SHA}" \
           --branch="${BRANCH}" \
           --build-name="${BUILD_NAME}" > "${JSON_PAYLOAD}"
@@ -172,7 +182,7 @@ runs:
         
         echo "Server response: ${RESPONSE}"
         ANALYSIS_ID=$(echo "${RESPONSE}" | jq -r '.id // empty')
-        echo "analysis_id=${ANALYSIS_ID}" >> $GITHUB_OUTPUT
+        echo "analysis_id=${ANALYSIS_ID}" >> "$GITHUB_OUTPUT"
         echo "✅ Analysis uploaded successfully (ID: ${ANALYSIS_ID})"
 
         BUDGET_PASSED=$(echo "${RESPONSE}" | jq -r '.budget_status.passed // true')
@@ -193,6 +203,10 @@ runs:
     - name: Post PR Comment
       if: github.event_name == 'pull_request'
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.number }}
       run: |
         set -euo pipefail
         
@@ -214,22 +228,20 @@ $(cat "${REPORT_FILE}")
         
         # Find existing comment with marker to update (avoids comment spam)
         COMMENT_ID=$(gh api \
-          "repos/${{ github.repository }}/issues/${{ github.event.number }}/comments" \
+          "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
           --jq '.[] | select(.body | contains("<!-- dwarflens-pr-comment -->") or contains("DwarfLens Binary Size Report")) | .id' \
           2>/dev/null | head -1 || true)
         
         if [ -n "${COMMENT_ID}" ]; then
           # Update existing comment
           gh api --method PATCH \
-            "repos/${{ github.repository }}/issues/comments/${COMMENT_ID}" \
+            "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
             -f "body=${COMMENT_BODY}" > /dev/null
           echo "Updated existing PR comment #${COMMENT_ID}"
         else
           # Create new comment
           gh api --method POST \
-            "repos/${{ github.repository }}/issues/${{ github.event.number }}/comments" \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
             -f "body=${COMMENT_BODY}" > /dev/null
           echo "Posted new PR comment"
         fi
-      env:
-        GH_TOKEN: ${{ github.token }}
