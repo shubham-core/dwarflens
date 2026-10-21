@@ -292,20 +292,22 @@ billingRouter.post('/billing/webhook', async (c) => {
 // 5. Retention Cleanup Endpoint (Internal / Cron trigger)
 // ---------------------------------------------------------------------------
 billingRouter.post('/billing/retention', async (c) => {
-  if (env.CRON_SECRET) {
-    const authHeader = c.req.header('authorization') || '';
-    if (!authHeader.startsWith('Bearer ')) {
-      return c.json({ error: 'Unauthorized: missing or invalid Authorization header' }, 401);
-    }
-    const token = authHeader.substring(7).trim();
-    const tokenBuf = Buffer.from(token, 'utf8');
-    const secretBuf = Buffer.from(env.CRON_SECRET, 'utf8');
+  const cronSecret = env.CRON_SECRET || process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error('[Billing Retention] CRON_SECRET is not configured; refusing to run retention cleanup (fail-closed)');
+    return c.json({ error: 'Cron secret not configured' }, 503);
+  }
 
-    if (tokenBuf.length !== secretBuf.length || !crypto.timingSafeEqual(tokenBuf, secretBuf)) {
-      return c.json({ error: 'Unauthorized: invalid cron secret' }, 401);
-    }
-  } else {
-    console.warn('[Billing Retention] CRON_SECRET is not set; running without authentication');
+  const authHeader = c.req.header('authorization') || '';
+  if (!authHeader.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized: missing or invalid Authorization header' }, 401);
+  }
+  const token = authHeader.substring(7).trim();
+  const tokenBuf = Buffer.from(token, 'utf8');
+  const secretBuf = Buffer.from(cronSecret, 'utf8');
+
+  if (tokenBuf.length !== secretBuf.length || !crypto.timingSafeEqual(tokenBuf, secretBuf)) {
+    return c.json({ error: 'Unauthorized: invalid cron secret' }, 401);
   }
 
   const report = await runRetentionCleanup();

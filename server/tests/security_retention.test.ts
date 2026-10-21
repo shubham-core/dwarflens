@@ -15,6 +15,21 @@ describe('P0-3: Retention Cron Guard & Secret Verification', () => {
     (env as any).CRON_SECRET = origSecret;
   });
 
+  it('rejects retention request with 503 when CRON_SECRET is unset/empty (fail-closed)', async () => {
+    (env as any).CRON_SECRET = '';
+
+    const res = await app.request('/api/v1/billing/retention', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.error).toMatch(/secret not configured/i);
+  });
+
   it('rejects retention request without Authorization header when CRON_SECRET is set (401)', async () => {
     const res = await app.request('/api/v1/billing/retention', {
       method: 'POST',
