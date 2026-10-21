@@ -726,7 +726,7 @@ export class DashboardApp {
           const banner = document.getElementById('share-link-banner');
           const input = document.getElementById('share-url-input') as HTMLInputElement;
           if (banner && input) {
-            input.value = `${window.location.origin}/#shared/${res.token}`;
+            input.value = (res as any).url || `${window.location.origin}${window.location.pathname.replace(/\/+$/, '')}/#shared/${res.token}`;
             banner.style.display = 'block';
 
             document.getElementById('btn-copy-share-url')?.addEventListener('click', () => {

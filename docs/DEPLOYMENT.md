@@ -227,3 +227,22 @@ DwarfLens transparently handles this with an automated one-time-code exchange:
 1. Upon GitHub OAuth callback, the backend generates an ephemeral cryptographic code (60-second TTL) and redirects to: `https://shubham-core.github.io/dwarflens/#code=<ephemeralCode>`.
 2. The frontend SPA immediately detects `#code=`, exchanges it via `POST /api/v1/auth/exchange-code`, and purges the code from the address bar.
 3. The resulting session token is kept in `sessionStorage` and transmitted via `Authorization: Bearer <sessionId>` headers for all subsequent API calls, guaranteeing 100% login reliability in Safari, Brave, and Incognito browsing mode.
+
+---
+
+## Branch Protection & Release Gates
+
+To ensure code safety before production deployment:
+
+1. **GitHub Branch Protection Rules**:
+   - Apply protection rule to `main`.
+   - **Require a pull request before merging** with at least 1 approval.
+   - **Require status checks to pass before merging**:
+     - `Native CLI & Tests / build-and-test`
+     - `WASM Build / wasm-build`
+     - `Server CI / test-and-typecheck`
+   - Enforce branch up-to-date checks.
+2. **Infrastructure-as-Code Configuration**:
+   - `render.yaml` declares explicit `NODE_ENV: production` for the web service.
+   - Deployments automatically trigger startup migration bootstrap (`migrate()`).
+
