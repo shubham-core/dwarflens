@@ -64,7 +64,9 @@ export function validateProductionEnv(e: Env): void {
       throw new Error('Refusing to start: GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are required in production');
     }
     const provider = (e.BILLING_PROVIDER || process.env.BILLING_PROVIDER || 'stripe').toLowerCase();
-    if (provider === 'lemonsqueezy' || provider === 'lemon_squeezy') {
+    if (provider === 'none' || provider === 'disabled') {
+      // Billing is disabled; no webhook secret required
+    } else if (provider === 'lemonsqueezy' || provider === 'lemon_squeezy') {
       if (!e.LEMONSQUEEZY_WEBHOOK_SECRET) {
         throw new Error('Refusing to start: LEMONSQUEEZY_WEBHOOK_SECRET is required when Lemon Squeezy billing provider is enabled');
       }
@@ -72,7 +74,7 @@ export function validateProductionEnv(e: Env): void {
       if (!e.RAZORPAY_WEBHOOK_SECRET) {
         throw new Error('Refusing to start: RAZORPAY_WEBHOOK_SECRET is required when Razorpay billing provider is enabled');
       }
-    } else {
+    } else if (provider === 'stripe') {
       if (!e.STRIPE_WEBHOOK_SECRET) {
         throw new Error('Refusing to start: STRIPE_WEBHOOK_SECRET is required when Stripe billing provider is enabled');
       }
