@@ -158,7 +158,8 @@ authRouter.post('/dev-login', async (c) => {
   }
 
   // Enforce that request strictly comes from localhost
-  const host = (c.req.header('host') || '').split(':')[0].toLowerCase();
+  const rawHost = c.req.header('host') || (c.req.url ? new URL(c.req.url).hostname : '');
+  const host = rawHost.split(':')[0].toLowerCase();
   const forwarded = c.req.header('x-forwarded-for');
   const clientIp = (forwarded ? forwarded.split(',')[0].trim() : '').toLowerCase();
 
