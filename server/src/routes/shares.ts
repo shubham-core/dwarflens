@@ -5,13 +5,18 @@ import { db } from '../db/client.js';
 import { analyses, projects, shareLinks, orgMembers } from '../db/schema.js';
 import { env } from '../env.js';
 import { AuthContextVariables, requireAuth } from '../middleware/auth.js';
+import { rateLimiter } from '../middleware/rateLimit.js';
 
 export const sharesRouter = new Hono<{ Variables: AuthContextVariables }>();
 
 // ---------------------------------------------------------------------------
 // 1. Create Share Link (Owner only)
 // ---------------------------------------------------------------------------
-sharesRouter.post('/analyses/:id/share', requireAuth, async (c) => {
+sharesRouter.post(
+  '/analyses/:id/share',
+  requireAuth,
+  rateLimiter({ limit: 30, windowMs: 60 * 1000, keyPrefix: 'share-create' }),
+  async (c) => {
   const analysisId = c.req.param('id');
   const user = c.get('user');
   const apiKey = c.get('apiKey');
@@ -127,7 +132,10 @@ sharesRouter.delete('/analyses/:id/share', requireAuth, async (c) => {
 // ---------------------------------------------------------------------------
 // 3. Public Read-Only Report Access (NO AUTH REQUIRED)
 // ---------------------------------------------------------------------------
-sharesRouter.get('/shared/:token', async (c) => {
+sharesRouter.get(
+  '/shared/:token',
+  rateLimiter({ limit: 60, windowMs: 60 * 1000, keyPrefix: 'share-read' }),
+  async (c) => {
   const token = c.req.param('token');
 
   const [link] = await db

@@ -176,3 +176,23 @@ npm run db:migrate --prefix server
 # Run full Vitest test suite
 npm test --prefix server
 ```
+
+---
+
+## 6. Rate Limiting and Multi-Instance Scaling
+
+DwarfLens enforces sliding-window rate limiting across critical API endpoints to protect against brute-force attacks and abuse:
+- **Authentication & OAuth:** `POST /api/v1/auth/dev-login` (10 requests/min), `GET /api/v1/auth/github` and `/callback` (20 requests/min)
+- **Public Share Links:** `GET /api/v1/shared/:token` (60 requests/min), `POST /api/v1/analyses/:id/share` (30 requests/min)
+- **CI Ingestion:** `POST /api/v1/analyses` (100 requests/min per API key/IP)
+
+### Trusted Client IP Resolution
+The API extracts the client's trusted IP using platform headers:
+1. `cf-connecting-ip` (Cloudflare edge proxy)
+2. `true-client-ip` (Akamai / Cloudflare Enterprise)
+3. In multi-hop proxy chains (Render, AWS ALB), the rightmost IP in `X-Forwarded-For` appended by the nearest reverse proxy, preventing client-spoofed prefix IPs from bypassing rate limits.
+
+### Multi-Instance Shared Store Notice
+> [!NOTE]
+> The default rate limiter uses an in-memory sliding window store suitable for single-instance deployments (standard on Render and Fly.io single-container setups).
+> When horizontally scaling to multiple backend instances or serverless worker pools, a shared centralized store (such as Redis or Upstash) must be configured to coordinate request counters across instances.
