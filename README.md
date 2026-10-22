@@ -11,6 +11,7 @@
 > **A zero-dependency C++23 systems profiling engine that parses DWARF/ELF64 debug metadata, pinpoints 64-byte CPU cache-line splits, and eliminates memory bloat via client-side WebAssembly.**
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Online-success.svg)](https://shubham-core.github.io/dwarflens/)
+[![Backend API](https://img.shields.io/badge/Backend%20API-Online-blue.svg)](https://dwarflens.onrender.com/health)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-purple.svg)](CMakeLists.txt)
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-wasm32-orange.svg)](wasm/)
 [![CI](https://github.com/shubham-core/dwarflens/actions/workflows/ci.yml/badge.svg)](https://github.com/shubham-core/dwarflens/actions)
@@ -259,7 +260,7 @@ Add DwarfLens to your PR workflow using `.github/workflows/ci.yml` or the standa
     format: markdown
     max-growth-bytes: '10240'        # Fail PR if binary grew by > 10 KiB
     fail-on-padding-regression: true # Fail PR if struct padding increased
-    api-url: 'https://api.dwarflens.com'
+    api-url: 'https://dwarflens.onrender.com'
     api-key: ${{ secrets.DWARFLENS_API_KEY }}
 ```
 
@@ -290,7 +291,7 @@ DwarfLens Cloud transforms the native profiling engine into an automated team mo
      uses: shubham-core/dwarflens/action@main
      with:
        target-binary: ./build/my_app
-       api-url: 'https://api.dwarflens.com'
+       api-url: 'https://dwarflens.onrender.com'
        api-key: ${{ secrets.DWARFLENS_API_KEY }}
    ```
 3. **Monitor Trends & Catch Bloat:** View real-time analyses and memory layout charts on your dashboard.
@@ -303,9 +304,13 @@ For detailed deployment and self-hosting instructions, see [docs/DEPLOYMENT.md](
 
 - [5-Minute Quickstart Guide](docs/QUICKSTART.md)
 - [REST API Reference](docs/API_REFERENCE.md)
+- [System Architecture Specification](docs/ARCHITECTURE.md)
+- [Security Architecture & Policy](docs/SECURITY.md)
 - [Analysis JSON Schema Specification](docs/SCHEMA_REFERENCE.md)
 - [Multi-Tenant Data Model](docs/DATA_MODEL.md)
 - [Deployment & Self-Hosting Guide](docs/DEPLOYMENT.md)
+- [Privacy Policy](docs/PRIVACY.md)
+- [Terms of Service](docs/TERMS.md)
 - [Frequently Asked Questions (FAQ)](docs/FAQ.md)
 - [Contributing Guidelines](CONTRIBUTING.md)
 
