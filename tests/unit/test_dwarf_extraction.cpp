@@ -294,6 +294,42 @@ TEST(dwarf_handles_empty_input) {
     ASSERT(r->empty());
 }
 
+TEST(cache_lines_min_max_touched) {
+    ensure_loaded();
+    const auto* s = find_struct("BadLayout");
+    ASSERT(s != nullptr);
+    ASSERT(s->min_cache_lines_touched >= 1);
+    ASSERT(s->max_cache_lines_touched >= s->min_cache_lines_touched);
+    ASSERT_EQ(s->cache_lines_spanned, s->min_cache_lines_touched);
+}
+
+TEST(repacker_safety_warnings) {
+    ensure_loaded();
+    const auto* s = find_struct("BadLayout");
+    ASSERT(s != nullptr);
+    ASSERT(s->optimal.has_value());
+    ASSERT(!s->optimal->repack_warnings.empty());
+    // Should contain ABI and access pattern advisories
+    bool has_abi_warn = false;
+    for (const auto& w : s->optimal->repack_warnings) {
+        if (w.find("ABI") != std::string::npos) has_abi_warn = true;
+    }
+    ASSERT(has_abi_warn);
+}
+
+TEST(unions_never_repacked) {
+    StructLayout u;
+    u.tag = "union";
+    u.name = "TestUnion";
+    u.byte_size = 8;
+    u.alignment = 8;
+    StructMember m1{"a", "int", 0, 4, 4, false, 0, 0, false};
+    StructMember m2{"b", "double", 0, 8, 8, false, 0, 0, false};
+    u.members = {m1, m2};
+    LayoutAnalyzer::analyze(u);
+    ASSERT(!u.optimal.has_value());
+}
+
 TEST(span_reader_empty_span) {
     std::vector<uint8_t> data;
     SpanReader rdr(data);
@@ -326,6 +362,9 @@ int main() {
     RUN(dwarf_good_layout_no_padding);
     RUN(dwarf_tail_padding_detected);
     RUN(dwarf_optimal_cpp_snippet_generated);
+    RUN(cache_lines_min_max_touched);
+    RUN(repacker_safety_warnings);
+    RUN(unions_never_repacked);
 
     printf("\n--- Safety / Malformed Input ---\n");
     RUN(elf_rejects_truncated_header);

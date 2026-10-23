@@ -8,7 +8,9 @@
 #endif
 
 #include "dwarflens/elf_parser.hpp"
-#include <cxxabi.h>
+#if __has_include(<cxxabi.h>)
+#  include <cxxabi.h>
+#endif
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -103,6 +105,7 @@ std::string ElfParser::demangle(const std::string& mangled) {
     if (mangled.empty()) {
         return {};
     }
+#if __has_include(<cxxabi.h>)
     int status = 0;
     char* demangled = abi::__cxa_demangle(mangled.c_str(), nullptr, nullptr, &status);
     if (status == 0 && demangled != nullptr) {
@@ -113,6 +116,7 @@ std::string ElfParser::demangle(const std::string& mangled) {
     if (demangled != nullptr) {
         std::free(demangled);
     }
+#endif
     return mangled;
 }
 

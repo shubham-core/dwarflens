@@ -3,7 +3,9 @@
 // 64-bit Mach-O parser implementation.
 #include "dwarflens/macho_parser.hpp"
 #include <algorithm>
-#include <cxxabi.h>
+#if __has_include(<cxxabi.h>)
+#  include <cxxabi.h>
+#endif
 #include <cstdlib>
 #include <cstring>
 #include <system_error>
@@ -74,6 +76,7 @@ std::string MachoParser::demangle(const std::string& mangled) {
     const char* raw = mangled.c_str();
     if (raw[0] == '_') ++raw; // Mach-O symbols usually have a leading underscore
 
+#if __has_include(<cxxabi.h>)
     int status = 0;
     char* dem = abi::__cxa_demangle(raw, nullptr, nullptr, &status);
     if (status == 0 && dem) {
@@ -81,6 +84,7 @@ std::string MachoParser::demangle(const std::string& mangled) {
         std::free(dem);
         return res;
     }
+#endif
     return mangled.starts_with("_") ? mangled.substr(1) : mangled;
 }
 

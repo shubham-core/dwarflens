@@ -69,6 +69,10 @@ struct ElfSection {
     uint64_t addralign{};
     uint64_t entsize{};
     SectionCategory category{SectionCategory::Other};
+
+    [[nodiscard]] bool is_compressed() const noexcept {
+        return (flags & 0x800) != 0 || name.rfind(".zdebug", 0) == 0;
+    }
 };
 
 struct ElfSymbol {

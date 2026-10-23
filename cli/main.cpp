@@ -132,6 +132,20 @@ static dwarflens::BinaryAnalysis analyze_binary(
 
             // Extract DWARF structs
             DwarfReader::Input dwarf_in;
+            bool any_compressed = false;
+            for (const auto& sec : elf.sections) {
+                if (sec.is_compressed() && (sec.name == ".debug_info" || sec.name.starts_with(".zdebug"))) {
+                    any_compressed = true;
+                    break;
+                }
+            }
+            if (any_compressed) {
+                std::cerr << "ℹ️  Notice: Compressed DWARF debug sections (SHF_COMPRESSED / .zdebug) detected.\n"
+                          << "   DwarfLens is zero-dependency and does not bundle zlib/zstd.\n"
+                          << "   To inspect struct layouts, recompile with -gz=none or run:\n"
+                          << "   objcopy --decompress-debug-sections <binary>\n";
+            }
+
             auto di = elf.section_data(".debug_info",   sp);
             auto da = elf.section_data(".debug_abbrev", sp);
             auto ds = elf.section_data(".debug_str",    sp);
@@ -359,8 +373,11 @@ static void print_table_analyze(const dwarflens::BinaryAnalysis& a) {
             cout << "\n  " << sl.tag << " " << sl.name
                  << " { size=" << sl.byte_size
                  << "B, padding=" << sl.total_padding_bytes
-                 << "B, cache_lines=" << sl.cache_lines_spanned;
-            if (sl.has_cache_line_crossing()) cout << " ⚠️  cache-line split!";
+                 << "B, cache_lines=" << sl.min_cache_lines_touched;
+            if (sl.max_cache_lines_touched > sl.min_cache_lines_touched) {
+                cout << "-" << sl.max_cache_lines_touched;
+            }
+            if (sl.has_cache_line_crossing()) cout << " ⚠️  cache-line split (assuming 64B-aligned base)!";
             cout << " }\n";
             for (const auto& m : sl.members) {
                 cout << "    +" << setw(4) << m.offset
@@ -368,7 +385,11 @@ static void print_table_analyze(const dwarflens::BinaryAnalysis& a) {
                      << " " << m.name << "\n";
             }
             if (sl.optimal.has_value() && sl.optimal->bytes_saved > 0) {
-                cout << "    💡 Reorder saves " << sl.optimal->bytes_saved << " bytes\n";
+                cout << "    💡 Size-optimal repack saves " << sl.optimal->bytes_saved << " bytes";
+                if (!sl.optimal->is_repack_safe) {
+                    cout << " (⚠️  ABI/inheritance warning)";
+                }
+                cout << "\n";
             }
         }
     }
@@ -482,14 +503,25 @@ static std::string make_markdown_analyze(const dwarflens::BinaryAnalysis& a) {
             o << "### `" << sl.tag << " " << sl.name << "`\n\n";
             o << "- Size: " << sl.byte_size << " bytes\n";
             o << "- Padding: " << sl.total_padding_bytes << " bytes\n";
-            o << "- Cache lines: " << sl.cache_lines_spanned << "\n\n";
+            o << "- Cache lines touched: " << sl.min_cache_lines_touched;
+            if (sl.max_cache_lines_touched > sl.min_cache_lines_touched) {
+                o << " (up to " << sl.max_cache_lines_touched << " if unaligned)";
+            }
+            if (sl.has_cache_line_crossing()) {
+                o << " *(⚠️ straddles 64B cache line assuming 64B-aligned base)*";
+            }
+            o << "\n\n";
             o << "| Field | Type | Offset | Size |\n|-------|------|--------|------|\n";
             for (const auto& m : sl.members)
                 o << "| `" << m.name << "` | `" << m.type_name << "` | +"
                   << m.offset << " | " << m.byte_size << " |\n";
-            if (sl.optimal.has_value())
-                o << "\n**Optimal reordering saves " << sl.optimal->bytes_saved << " bytes:**\n\n```cpp\n"
-                  << sl.optimal->cpp_snippet << "\n```\n";
+            if (sl.optimal.has_value()) {
+                o << "\n**Size-optimal repack saves " << sl.optimal->bytes_saved << " bytes:**\n";
+                if (!sl.optimal->is_repack_safe) {
+                    o << "> ⚠️ **ABI / Inheritance Warning:** Reordering fields alters binary ABI layout.\n";
+                }
+                o << "\n```cpp\n" << sl.optimal->cpp_snippet << "\n```\n";
+            }
             o << "\n";
         }
     }

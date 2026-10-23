@@ -238,9 +238,25 @@ void LayoutAnalyzer::compute_cache_lines(StructLayout& layout) {
 
     if (layout.byte_size == 0) {
         layout.cache_lines_spanned = 0;
+        layout.min_cache_lines_touched = 0;
+        layout.max_cache_lines_touched = 0;
+        return;
+    }
+
+    // Min lines touched: when struct base is aligned to a 64-byte boundary (0 mod 64)
+    layout.min_cache_lines_touched = static_cast<uint32_t>(
+        std::max<uint64_t>(1, (layout.byte_size + kCacheLineSize - 1) / kCacheLineSize));
+    layout.cache_lines_spanned = layout.min_cache_lines_touched;
+
+    // Max lines touched: when alignof(struct) < 64 and instance starts at worst-case valid alignment
+    uint64_t align = layout.alignment;
+    if (align == 0) align = 1;
+    if (align >= kCacheLineSize) {
+        layout.max_cache_lines_touched = layout.min_cache_lines_touched;
     } else {
-        layout.cache_lines_spanned = static_cast<uint32_t>(
-            std::max<uint64_t>(1, (layout.byte_size + kCacheLineSize - 1) / kCacheLineSize));
+        uint64_t worst_offset = kCacheLineSize - align;
+        layout.max_cache_lines_touched = static_cast<uint32_t>(
+            std::max<uint64_t>(1, (worst_offset + layout.byte_size + kCacheLineSize - 1) / kCacheLineSize));
     }
 
     for (const auto& member : layout.members) {
@@ -268,19 +284,41 @@ void LayoutAnalyzer::compute_optimal(StructLayout& layout) {
 
     if (layout.byte_size == 0) return;
 
+    // Skip if layout is a union (reordering union members is not meaningful)
+    if (layout.tag == "union") {
+        return;
+    }
+
     // Skip if layout has no non-bitfield, non-base-class members to reorder
     bool has_bitfield = false;
+    bool has_base_class = false;
+    bool has_vptr = false;
     size_t reorder_count = 0;
     for (const auto& m : layout.members) {
         if (m.is_bitfield) {
             has_bitfield = true;
-        } else if (!m.is_base_class) {
+        } else if (m.is_base_class) {
+            has_base_class = true;
+        } else {
             reorder_count++;
+            if (m.name.starts_with("_vptr") || m.name.starts_with("__vptr")) {
+                has_vptr = true;
+            }
         }
     }
 
     if (has_bitfield || reorder_count == 0) {
         return;
+    }
+
+    // Check if struct appears packed (__attribute__((packed)) or #pragma pack)
+    bool appears_packed = false;
+    for (const auto& m : layout.members) {
+        uint64_t nat_align = effective_alignment(m);
+        if (nat_align > 1 && (m.offset % nat_align) != 0) {
+            appears_packed = true;
+            break;
+        }
     }
 
     // Separate base class members (keep at front, fixed order) from non-base-class members
@@ -351,6 +389,20 @@ void LayoutAnalyzer::compute_optimal(StructLayout& layout) {
 
     uint64_t bytes_saved = layout.byte_size - optimal_byte_size;
 
+    // Safety assessment
+    bool is_repack_safe = true;
+    std::vector<std::string> repack_warnings;
+    if (has_base_class || has_vptr) {
+        is_repack_safe = false;
+        repack_warnings.push_back("Struct has base classes or virtual method tables. Field reordering alters derived memory layout and breaks C++ ABI.");
+    }
+    if (appears_packed) {
+        is_repack_safe = false;
+        repack_warnings.push_back("Struct appears packed (__attribute__((packed)) or #pragma pack). Field reordering will alter the packed serialization format.");
+    }
+    repack_warnings.push_back("Size-optimal repack sorts fields by descending alignment to minimize padding holes. It does NOT analyze runtime hot/cold field access patterns.");
+    repack_warnings.push_back("WARNING: Reordering struct fields breaks C/C++ binary ABI compatibility. Do not apply to types that are serialized, memory-mapped, or part of a C ABI.");
+
     // Generate snippets with original vs optimal metrics
     tl_was_size = layout.byte_size;
     tl_now_size = optimal_byte_size;
@@ -365,6 +417,8 @@ void LayoutAnalyzer::compute_optimal(StructLayout& layout) {
     optimal.members = std::move(optimal_members);
     optimal.byte_size = optimal_byte_size;
     optimal.bytes_saved = bytes_saved;
+    optimal.is_repack_safe = is_repack_safe;
+    optimal.repack_warnings = std::move(repack_warnings);
     optimal.cpp_snippet = std::move(cpp_snippet);
     optimal.rust_snippet = std::move(rust_snippet);
 
@@ -383,6 +437,12 @@ std::string LayoutAnalyzer::generate_cpp_snippet(
     uint64_t now_size = tl_now_size;
 
     std::ostringstream oss;
+    oss << "// =========================================================================\n"
+        << "// SIZE-OPTIMAL LAYOUT PROPOSAL (Descending alignment order)\n"
+        << "// WARNING: Field reordering breaks C/C++ binary ABI compatibility.\n"
+        << "// Do not apply if struct is part of an external C ABI, serialized, or mmapped.\n"
+        << "// Note: Minimizes padding bytes; does not analyze runtime hot/cold access.\n"
+        << "// =========================================================================\n";
 
     if (was_size > 0 && now_size > 0 && was_size > now_size) {
         uint64_t saves = was_size - now_size;
@@ -437,7 +497,11 @@ std::string LayoutAnalyzer::generate_rust_snippet(
     }
 
     std::ostringstream oss;
-    oss << "#[repr(C)]\n";
+    oss << "// =========================================================================\n"
+        << "// SIZE-OPTIMAL LAYOUT PROPOSAL (Descending alignment order)\n"
+        << "// WARNING: Field reordering breaks C ABI compatibility across FFI boundaries.\n"
+        << "// =========================================================================\n"
+        << "#[repr(C)]\n";
     oss << "struct " << struct_name << " {\n";
 
     for (const auto& m : members) {

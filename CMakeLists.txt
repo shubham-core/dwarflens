@@ -28,21 +28,30 @@ endif()
 # =============================================================================
 # Compiler flags
 # =============================================================================
-set(DWARFLENS_COMPILE_OPTIONS
-  -Wall -Wextra -Wpedantic
-  -Wno-unused-parameter
-)
-
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  list(APPEND DWARFLENS_COMPILE_OPTIONS
-    -Wformat=2
-    -Wnull-dereference
+if(MSVC)
+  set(DWARFLENS_COMPILE_OPTIONS
+    /W4
+    /permissive-
+    /EHsc
+    /utf-8
   )
-endif()
+else()
+  set(DWARFLENS_COMPILE_OPTIONS
+    -Wall -Wextra -Wpedantic
+    -Wno-unused-parameter
+  )
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  list(APPEND DWARFLENS_COMPILE_OPTIONS -Wno-builtin-macro-redefined)
-  add_compile_definitions(__cpp_concepts=202002L)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    list(APPEND DWARFLENS_COMPILE_OPTIONS
+      -Wformat=2
+      -Wnull-dereference
+    )
+  endif()
+
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    list(APPEND DWARFLENS_COMPILE_OPTIONS -Wno-builtin-macro-redefined)
+    add_compile_definitions(__cpp_concepts=202002L)
+  endif()
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

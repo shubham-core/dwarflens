@@ -107,6 +107,8 @@
           "total_padding_bytes": { "type": "integer", "minimum": 0 },
           "useful_bytes": { "type": "integer", "minimum": 0 },
           "cache_lines_spanned": { "type": "integer", "minimum": 0 },
+          "min_cache_lines_touched": { "type": "integer", "minimum": 0 },
+          "max_cache_lines_touched": { "type": "integer", "minimum": 0 },
           "has_padding": { "type": "boolean" },
           "has_cache_line_crossing": { "type": "boolean" },
           "members": {
@@ -162,6 +164,8 @@
                 "properties": {
                   "byte_size": { "type": "integer" },
                   "bytes_saved": { "type": "integer" },
+                  "is_repack_safe": { "type": "boolean" },
+                  "repack_warnings": { "type": "array", "items": { "type": "string" } },
                   "cpp_snippet": { "type": "string" },
                   "rust_snippet": { "type": "string" }
                 },

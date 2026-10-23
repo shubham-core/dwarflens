@@ -1115,14 +1115,14 @@
               </div>
             </div>
 
-            <!-- Optimal Reordering Suggestion -->
+            <!-- Size-Optimal Reordering Suggestion -->
             <div class="card" id="optimal-card">
               <div class="card-title">
-                <span>Optimal Alignment Reordering</span>
+                <span>Size-Optimal Reordering</span>
                 <span class="badge badge-optimal" id="optimal-savings-badge">Saved 0 Bytes</span>
               </div>
               <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
-                Reordering fields from largest to smallest alignment eliminates padding holes and minimizes L1 cache line footprint.
+                Sorting fields by descending alignment minimizes padding holes and struct footprint. <strong>Warning:</strong> Field reordering breaks binary ABI compatibility and ignores hot/cold runtime access patterns.
               </p>
               <div class="code-box">
                 <div class="code-header">

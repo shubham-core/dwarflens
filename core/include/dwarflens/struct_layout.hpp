@@ -64,13 +64,17 @@ struct StructLayout {
 
     uint64_t total_padding_bytes{};   // sum of all hole sizes
     uint64_t useful_bytes{};          // byte_size - total_padding_bytes
-    uint32_t cache_lines_spanned{};   // ceil(byte_size / 64)
+    uint32_t cache_lines_spanned{};   // ceil(byte_size / 64) - lines touched if base is 64-byte aligned
+    uint32_t min_cache_lines_touched{}; // lines touched if struct base is 64-byte aligned (offset 0 mod 64)
+    uint32_t max_cache_lines_touched{}; // worst-case lines touched if alignof < 64 and placed at arbitrary valid offset
 
-    // Optimal reordering result
+    // Size-optimal reordering result (descending alignment)
     struct OptimalLayout {
         std::vector<StructMember> members; // reordered
         uint64_t byte_size{};
         uint64_t bytes_saved{};
+        bool is_repack_safe{true};
+        std::vector<std::string> repack_warnings;
         std::string cpp_snippet;   // copy-pasteable C/C++ struct
         std::string rust_snippet;  // copy-pasteable Rust struct
     };

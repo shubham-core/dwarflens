@@ -29,6 +29,8 @@ export interface CacheLineCrossing {
 export interface OptimalLayout {
   byte_size: number;
   bytes_saved: number;
+  is_repack_safe?: boolean;
+  repack_warnings?: string[];
   cpp_snippet: string;
   rust_snippet: string;
 }
@@ -43,6 +45,8 @@ export interface StructLayout {
   total_padding_bytes: number;
   useful_bytes: number;
   cache_lines_spanned: number;
+  min_cache_lines_touched?: number;
+  max_cache_lines_touched?: number;
   has_padding: boolean;
   has_cache_line_crossing: boolean;
   members: StructMember[];

@@ -3,7 +3,9 @@
 // Windows PE/COFF parser implementation.
 #include "dwarflens/pe_parser.hpp"
 #include <algorithm>
-#include <cxxabi.h>
+#if __has_include(<cxxabi.h>)
+#  include <cxxabi.h>
+#endif
 #include <cstdlib>
 #include <cstring>
 #include <system_error>
@@ -69,6 +71,7 @@ SectionCategory PeParser::classify_section(std::string_view name, uint32_t chara
 
 std::string PeParser::demangle(const std::string& mangled) {
     if (mangled.empty()) return mangled;
+#if __has_include(<cxxabi.h>)
     int status = 0;
     char* dem = abi::__cxa_demangle(mangled.c_str(), nullptr, nullptr, &status);
     if (status == 0 && dem) {
@@ -76,6 +79,7 @@ std::string PeParser::demangle(const std::string& mangled) {
         std::free(dem);
         return res;
     }
+#endif
     return mangled;
 }
 

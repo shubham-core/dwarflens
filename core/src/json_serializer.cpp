@@ -112,6 +112,8 @@ std::string JsonSerializer::serialize(const StructLayout& layout) {
     o << i2 << JsonBuilder::kv("total_padding_bytes", layout.total_padding_bytes) << ",\n";
     o << i2 << JsonBuilder::kv("useful_bytes",        layout.useful_bytes)        << ",\n";
     o << i2 << JsonBuilder::kv("cache_lines_spanned",(uint64_t)layout.cache_lines_spanned) << ",\n";
+    o << i2 << JsonBuilder::kv("min_cache_lines_touched",(uint64_t)layout.min_cache_lines_touched) << ",\n";
+    o << i2 << JsonBuilder::kv("max_cache_lines_touched",(uint64_t)layout.max_cache_lines_touched) << ",\n";
     o << i2 << JsonBuilder::kv("has_padding",         layout.has_padding())       << ",\n";
     o << i2 << JsonBuilder::kv("has_cache_line_crossing", layout.has_cache_line_crossing()) << ",\n";
 
@@ -138,10 +140,16 @@ std::string JsonSerializer::serialize(const StructLayout& layout) {
     if (layout.optimal.has_value()) {
         const auto& opt = *layout.optimal;
         o << i2 << "\"optimal\": {\n";
-        o << i4 << JsonBuilder::kv("byte_size",   opt.byte_size)   << ",\n";
-        o << i4 << JsonBuilder::kv("bytes_saved", opt.bytes_saved) << ",\n";
-        o << i4 << JsonBuilder::kv("cpp_snippet", opt.cpp_snippet) << ",\n";
-        o << i4 << JsonBuilder::kv("rust_snippet",opt.rust_snippet) << "\n";
+        o << i4 << JsonBuilder::kv("byte_size",      opt.byte_size)      << ",\n";
+        o << i4 << JsonBuilder::kv("bytes_saved",    opt.bytes_saved)    << ",\n";
+        o << i4 << JsonBuilder::kv("is_repack_safe", opt.is_repack_safe) << ",\n";
+        {
+            std::vector<std::string> warn_items;
+            for (const auto& w : opt.repack_warnings) warn_items.push_back(JsonBuilder::quote(w));
+            o << i4 << "\"repack_warnings\": " << array_of(warn_items, 0) << ",\n";
+        }
+        o << i4 << JsonBuilder::kv("cpp_snippet",    opt.cpp_snippet)    << ",\n";
+        o << i4 << JsonBuilder::kv("rust_snippet",   opt.rust_snippet)   << "\n";
         o << i2 << "}\n";
     } else {
         o << i2 << "\"optimal\": null\n";
