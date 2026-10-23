@@ -34,6 +34,7 @@ if(MSVC)
     /permissive-
     /EHsc
     /utf-8
+    /Zc:__cplusplus
   )
 else()
   set(DWARFLENS_COMPILE_OPTIONS

@@ -2,7 +2,9 @@
 // DwarfLens — span_reader.hpp
 // Zero-copy, bounds-checked binary reader over std::span<const uint8_t>.
 #pragma once
+#include <bit>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include "expected.hpp"
 #include <optional>
@@ -12,6 +14,50 @@
 #include <system_error>
 
 namespace dwarflens {
+
+namespace detail {
+
+template <typename T>
+constexpr T byteswap_val(T value) noexcept {
+#if defined(__cpp_lib_byteswap) && __cpp_lib_byteswap >= 202110L
+    return std::byteswap(value);
+#elif defined(_MSC_VER)
+    if constexpr (sizeof(T) == 2) return static_cast<T>(_byteswap_ushort(static_cast<unsigned short>(value)));
+    else if constexpr (sizeof(T) == 4) return static_cast<T>(_byteswap_ulong(static_cast<unsigned long>(value)));
+    else if constexpr (sizeof(T) == 8) return static_cast<T>(_byteswap_uint64(static_cast<unsigned __int64>(value)));
+    else return value;
+#elif defined(__GNUC__) || defined(__clang__)
+    if constexpr (sizeof(T) == 2) return static_cast<T>(__builtin_bswap16(static_cast<uint16_t>(value)));
+    else if constexpr (sizeof(T) == 4) return static_cast<T>(__builtin_bswap32(static_cast<uint32_t>(value)));
+    else if constexpr (sizeof(T) == 8) return static_cast<T>(__builtin_bswap64(static_cast<uint64_t>(value)));
+    else return value;
+#else
+    if constexpr (sizeof(T) == 2) {
+        auto v = static_cast<uint16_t>(value);
+        return static_cast<T>((v >> 8) | (v << 8));
+    } else if constexpr (sizeof(T) == 4) {
+        auto v = static_cast<uint32_t>(value);
+        return static_cast<T>(((v & 0xFF000000u) >> 24) |
+                              ((v & 0x00FF0000u) >> 8)  |
+                              ((v & 0x0000FF00u) << 8)  |
+                              ((v & 0x000000FFu) << 24));
+    } else if constexpr (sizeof(T) == 8) {
+        auto v = static_cast<uint64_t>(value);
+        return static_cast<T>(((v & 0xFF00000000000000ULL) >> 56) |
+                              ((v & 0x00FF000000000000ULL) >> 40) |
+                              ((v & 0x0000FF0000000000ULL) >> 24) |
+                              ((v & 0x000000FF00000000ULL) >> 8)  |
+                              ((v & 0x00000000FF000000ULL) << 8)  |
+                              ((v & 0x0000000000FF0000ULL) << 24) |
+                              ((v & 0x000000000000FF00ULL) << 40) |
+                              ((v & 0x00000000000000FFULL) << 56));
+    } else {
+        return value;
+    }
+#endif
+}
+
+} // namespace detail
 
 // ---------------------------------------------------------------------------
 // Error type
@@ -108,8 +154,8 @@ public:
         std::memcpy(&v, data_.data() + cursor_, 2);
         cursor_ += 2;
         // Ensure little-endian on big-endian hosts (compile-time)
-        if constexpr (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-            v = __builtin_bswap16(v);
+        if constexpr (std::endian::native == std::endian::big)
+            v = detail::byteswap_val(v);
         return v;
     }
 
@@ -119,8 +165,8 @@ public:
         uint32_t v;
         std::memcpy(&v, data_.data() + cursor_, 4);
         cursor_ += 4;
-        if constexpr (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-            v = __builtin_bswap32(v);
+        if constexpr (std::endian::native == std::endian::big)
+            v = detail::byteswap_val(v);
         return v;
     }
 
@@ -130,8 +176,8 @@ public:
         uint64_t v;
         std::memcpy(&v, data_.data() + cursor_, 8);
         cursor_ += 8;
-        if constexpr (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-            v = __builtin_bswap64(v);
+        if constexpr (std::endian::native == std::endian::big)
+            v = detail::byteswap_val(v);
         return v;
     }
 
@@ -141,8 +187,8 @@ public:
         uint16_t v;
         std::memcpy(&v, data_.data() + cursor_, 2);
         cursor_ += 2;
-        if constexpr (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
-            v = __builtin_bswap16(v);
+        if constexpr (std::endian::native == std::endian::little)
+            v = detail::byteswap_val(v);
         return v;
     }
 
@@ -152,8 +198,8 @@ public:
         uint32_t v;
         std::memcpy(&v, data_.data() + cursor_, 4);
         cursor_ += 4;
-        if constexpr (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
-            v = __builtin_bswap32(v);
+        if constexpr (std::endian::native == std::endian::little)
+            v = detail::byteswap_val(v);
         return v;
     }
 
@@ -163,8 +209,8 @@ public:
         uint64_t v;
         std::memcpy(&v, data_.data() + cursor_, 8);
         cursor_ += 8;
-        if constexpr (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
-            v = __builtin_bswap64(v);
+        if constexpr (std::endian::native == std::endian::little)
+            v = detail::byteswap_val(v);
         return v;
     }
 

@@ -2,11 +2,6 @@
 // DwarfLens — elf_parser.cpp
 // ELF64 binary parser implementation.
 
-#if defined(__cplusplus) && __cplusplus <= 202002L
-#  undef __cplusplus
-#  define __cplusplus 202302L
-#endif
-
 #include "dwarflens/elf_parser.hpp"
 #if __has_include(<cxxabi.h>)
 #  include <cxxabi.h>

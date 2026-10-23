@@ -2,11 +2,6 @@
 // DwarfLens — wasm_parser.cpp
 // Implementation of WebAssembly binary parser per WebAssembly Binary Spec §5.
 
-#if defined(__cplusplus) && __cplusplus <= 202002L
-#  undef __cplusplus
-#  define __cplusplus 202302L
-#endif
-
 #include "dwarflens/wasm_parser.hpp"
 #include <algorithm>
 #include <cstring>
